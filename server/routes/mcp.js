@@ -57,10 +57,18 @@ const TOOLS = [
   },
   {
     name: 'list_recent_picks',
-    description: 'Returns the last 10 element picks for the current user, newest first.',
+    description:
+      'Returns recent element picks for the current user, newest first. ' +
+      'Use this when the user wants to fix multiple elements at once, or asks about "all picks", "recent picks", or "everything I sent". ' +
+      'Each pick includes the element context, selector, page URL, and user prompt.',
     inputSchema: {
       type: 'object',
-      properties: {},
+      properties: {
+        limit: {
+          type: 'number',
+          description: 'Maximum number of picks to return (1–20). Defaults to 10.',
+        },
+      },
       required: [],
     },
   },
@@ -132,15 +140,16 @@ function createMcpServer(userId) {
         }
 
         case 'list_recent_picks': {
-          const picks = await listRecentPicks(userId);
+          const limit = Math.min(Math.max(parseInt(args.limit ?? 10, 10), 1), 20);
+          const picks = await listRecentPicks(userId, limit);
           return {
             content: [
               {
                 type: 'text',
                 text:
                   picks.length > 0
-                    ? JSON.stringify(picks, null, 2)
-                    : 'No picks found.',
+                    ? `Found ${picks.length} pick(s):\n\n${JSON.stringify(picks, null, 2)}`
+                    : 'No picks found. Use the browser extension to pick some elements first.',
               },
             ],
           };

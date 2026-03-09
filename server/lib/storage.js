@@ -117,15 +117,15 @@ export async function getPickById(userId, id) {
  * @param {string} userId
  * @returns {Promise<object[]>}
  */
-export async function listRecentPicks(userId) {
+export async function listRecentPicks(userId, limit = 10) {
   const key = memKey(userId);
 
   if (redis) {
-    const raws = await redis.lrange(key, 0, -1);
+    const raws = await redis.lrange(key, 0, limit - 1);
     return raws.map(deserialize).filter(Boolean);
   } else {
     const list = memStore.get(key) ?? [];
-    return list.map(deserialize).filter(Boolean);
+    return list.slice(0, limit).map(deserialize).filter(Boolean);
   }
 }
 
