@@ -1,0 +1,314 @@
+/* ── Picker overlay ──────────────────────────────────────────────────────────── */
+
+#bp-highlight-overlay {
+  position: fixed;
+  pointer-events: none;
+  border: 2px solid #0066ff;
+  background: rgba(0, 102, 255, 0.08);
+  z-index: 999998;
+  transition: none;
+  box-sizing: border-box;
+  display: none;
+}
+
+#bp-tooltip {
+  position: fixed;
+  background: #0066ff;
+  color: #fff;
+  font: 12px/1.4 sans-serif;
+  padding: 3px 8px;
+  border-radius: 4px;
+  z-index: 999999;
+  pointer-events: none;
+  display: none;
+  white-space: nowrap;
+}
+
+/* ── Panel wrapper (sits outside #bp-panel so we can nuke it cleanly) ────────── */
+
+#bp-panel-wrapper {
+  all: initial;
+}
+
+/* ── Panel ───────────────────────────────────────────────────────────────────── */
+
+#bp-panel {
+  all: initial;
+  position: fixed !important;
+  bottom: 20px !important;
+  right: 20px !important;
+  width: 340px !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+  background: #fff !important;
+  border: 1px solid #ddd !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+  z-index: 999999 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  font-size: 14px !important;
+  color: #1a1a1a !important;
+  padding: 16px !important;
+  box-sizing: border-box !important;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────────── */
+
+#bp-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 6px !important;
+}
+
+#bp-element-label {
+  font-weight: 600 !important;
+  font-size: 15px !important;
+  color: #0066ff !important;
+  word-break: break-all !important;
+}
+
+#bp-close {
+  background: none !important;
+  border: none !important;
+  font-size: 16px !important;
+  cursor: pointer !important;
+  color: #888 !important;
+  padding: 2px 4px !important;
+  border-radius: 4px !important;
+  line-height: 1 !important;
+  flex-shrink: 0 !important;
+}
+
+#bp-close:hover {
+  color: #333 !important;
+  background: #f0f0f0 !important;
+}
+
+/* ── URL ─────────────────────────────────────────────────────────────────────── */
+
+#bp-url {
+  font-size: 11px !important;
+  color: #888 !important;
+  word-break: break-all !important;
+  margin-bottom: 10px !important;
+}
+
+#bp-panel hr {
+  border: none !important;
+  border-top: 1px solid #eee !important;
+  margin: 10px 0 !important;
+}
+
+/* ── Toggles ─────────────────────────────────────────────────────────────────── */
+
+#bp-toggles {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 5px !important;
+  margin-bottom: 10px !important;
+}
+
+#bp-toggles label {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  cursor: pointer !important;
+  font-size: 13px !important;
+  color: #333 !important;
+  user-select: none !important;
+}
+
+#bp-toggles label em {
+  font-size: 11px !important;
+  color: #aaa !important;
+  font-style: normal !important;
+}
+
+#bp-toggles input[type="checkbox"] {
+  cursor: pointer !important;
+  accent-color: #0066ff !important;
+}
+
+#bp-toggles input[type="checkbox"]:disabled {
+  opacity: 0.5 !important;
+  cursor: default !important;
+}
+
+/* ── Presets ─────────────────────────────────────────────────────────────────── */
+
+#bp-presets {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 6px !important;
+  flex-wrap: wrap !important;
+  margin-bottom: 10px !important;
+}
+
+#bp-presets button {
+  flex: 1 !important;
+  min-width: 60px !important;
+  padding: 4px 8px !important;
+  font-size: 12px !important;
+  border: 1px solid #ccc !important;
+  border-radius: 4px !important;
+  background: #f8f8f8 !important;
+  color: #333 !important;
+  cursor: pointer !important;
+  transition: background 0.15s !important;
+}
+
+#bp-presets button:hover {
+  background: #e8e8e8 !important;
+  border-color: #0066ff !important;
+  color: #0066ff !important;
+}
+
+/* ── Prompt textarea ─────────────────────────────────────────────────────────── */
+
+#bp-prompt {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  min-height: 72px !important;
+  padding: 8px !important;
+  font-size: 13px !important;
+  font-family: inherit !important;
+  border: 1px solid #ccc !important;
+  border-radius: 4px !important;
+  resize: vertical !important;
+  color: #333 !important;
+  background: #fafafa !important;
+  margin-bottom: 10px !important;
+  outline: none !important;
+}
+
+#bp-prompt:focus {
+  border-color: #0066ff !important;
+  background: #fff !important;
+}
+
+/* ── API key section ─────────────────────────────────────────────────────────── */
+
+#bp-api-key-section {
+  background: #f0f5ff !important;
+  border: 1px solid #c0d4ff !important;
+  border-radius: 6px !important;
+  padding: 10px !important;
+  margin-bottom: 10px !important;
+  font-size: 13px !important;
+}
+
+#bp-api-key-section p {
+  margin: 0 0 6px !important;
+  font-weight: 600 !important;
+  color: #333 !important;
+}
+
+#bp-api-key-input {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 6px 8px !important;
+  border: 1px solid #aac0ff !important;
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  margin-bottom: 6px !important;
+  outline: none !important;
+}
+
+#bp-api-key-input:focus {
+  border-color: #0066ff !important;
+}
+
+#bp-api-key-save {
+  padding: 5px 12px !important;
+  background: #0066ff !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  font-size: 12px !important;
+  margin-right: 8px !important;
+}
+
+#bp-api-key-save:hover {
+  background: #0052cc !important;
+}
+
+#bp-api-key-section a {
+  font-size: 12px !important;
+  color: #0066ff !important;
+  text-decoration: none !important;
+}
+
+#bp-api-key-section a:hover {
+  text-decoration: underline !important;
+}
+
+/* ── Actions ─────────────────────────────────────────────────────────────────── */
+
+#bp-actions {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-bottom: 8px !important;
+}
+
+#bp-pick-another {
+  padding: 7px 12px !important;
+  font-size: 13px !important;
+  border: 1px solid #ccc !important;
+  border-radius: 4px !important;
+  background: #f8f8f8 !important;
+  color: #333 !important;
+  cursor: pointer !important;
+  flex: 1 !important;
+}
+
+#bp-pick-another:hover {
+  background: #ececec !important;
+}
+
+#bp-send {
+  padding: 7px 14px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  border: none !important;
+  border-radius: 4px !important;
+  background: #0066ff !important;
+  color: #fff !important;
+  cursor: pointer !important;
+  flex: 2 !important;
+  transition: background 0.15s !important;
+}
+
+#bp-send:hover:not(:disabled) {
+  background: #0052cc !important;
+}
+
+#bp-send:disabled {
+  background: #99bfff !important;
+  cursor: default !important;
+}
+
+/* ── Status ──────────────────────────────────────────────────────────────────── */
+
+#bp-status {
+  font-size: 12px !important;
+  min-height: 18px !important;
+  color: #888 !important;
+  word-break: break-word !important;
+}
+
+#bp-status.success {
+  color: #1a8a3c !important;
+}
+
+#bp-status.error {
+  color: #cc2200 !important;
+}
+
+#bp-status.info {
+  color: #555 !important;
+}

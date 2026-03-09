@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Clasp It for Claude Code",
+  "version": "1.0.0",
+  "description": "Pick any webpage element and send it to Claude Code",
+
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "webNavigation",
+    "webRequest"
+  ],
+
+  "optional_permissions": [],
+
+  "host_permissions": [
+    "https://api.clasp-it.com/*",
+    "http://localhost:3001/*",
+    "<all_urls>"
+  ],
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "action": {
+    "default_title": "Clasp It for Claude Code"
+  },
+
+  "web_accessible_resources": [
+    {
+      "resources": ["panel.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

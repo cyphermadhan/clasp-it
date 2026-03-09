@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(npm show @modelcontextprotocol/sdk)",
+      "Read(//tmp/mcp-check/node_modules/@modelcontextprotocol/sdk/**)",
+      "Read(//tmp/mcp-check/node_modules/@modelcontextprotocol/**)",
+      "Read(//private/tmp/mcp-check/node_modules/@modelcontextprotocol/sdk/dist/esm/server/**)",
+      "Read(//private/tmp/mcp-check/node_modules/@modelcontextprotocol/sdk/**)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\(''exports'', {}\\), indent=2\\)\\)\")",
+      "Bash(npm install)",
+      "Bash(pkill -f \"node index.js\")",
+      "Bash(curl -s http://localhost:3001/health)",
+      "Bash(curl -s -X POST http://localhost:3001/element-context -H \"Content-Type: application/json\" -H \"X-API-Key: dev\" -d '{\"\"prompt\"\":\"\"make this button red\"\",\"\"element\"\":{\"\"selector\"\":\"\"#submit-btn\"\",\"\"tagName\"\":\"\"button\"\",\"\"innerText\"\":\"\"Submit\"\"}}')",
+      "Bash(curl -s -X POST http://localhost:3001/mcp -H \"Content-Type: application/json\" -H \"Accept: application/json, text/event-stream\" -H \"X-API-Key: dev\" -d '{\"\"jsonrpc\"\":\"\"2.0\"\",\"\"id\"\":1,\"\"method\"\":\"\"tools/call\"\",\"\"params\"\":{\"\"name\"\":\"\"get_element_context\"\",\"\"arguments\"\":{}}}')",
+      "Bash(ls /Users/atlas/Documents/Github/clasp/*.md)",
+      "Bash(claude remote-control:*)",
+      "Bash(find . -type f \\\\\\( -name \"*.js\" -o -name \"*.json\" -o -name \"*.md\" \\\\\\) ! -path \"*/node_modules/*\" ! -path \"*/.git/*\" -exec wc -l {} +)",
+      "Bash(node --input-type=module --eval \":*)",
+      "Bash(node --check index.js routes/auth.js routes/element.js routes/mcp.js lib/auth.js lib/storage.js lib/db.js)",
+      "WebFetch(domain:docs.dodopayments.com)"
+    ],
+    "additionalDirectories": [
+      "/Users/atlas/Documents/Github/clasp"
+    ]
+  }
+}
