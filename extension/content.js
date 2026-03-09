@@ -1,7 +1,7 @@
 // Content script — Clasp It for Claude Code
 // Injected at document_idle on all pages.
 
-const SERVER_URL = "http://localhost:3001";
+const SERVER_URL = "https://clasp-it-production.up.railway.app";
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let pickerActive = false;

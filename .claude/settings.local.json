@@ -19,7 +19,8 @@
       "Bash(find . -type f \\\\\\( -name \"*.js\" -o -name \"*.json\" -o -name \"*.md\" \\\\\\) ! -path \"*/node_modules/*\" ! -path \"*/.git/*\" -exec wc -l {} +)",
       "Bash(node --input-type=module --eval \":*)",
       "Bash(node --check index.js routes/auth.js routes/element.js routes/mcp.js lib/auth.js lib/storage.js lib/db.js)",
-      "WebFetch(domain:docs.dodopayments.com)"
+      "WebFetch(domain:docs.dodopayments.com)",
+      "Bash(claude mcp add --help)"
     ],
     "additionalDirectories": [
       "/Users/atlas/Documents/Github/clasp"

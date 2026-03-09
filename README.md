@@ -3,9 +3,11 @@
 Pick any element on any webpage and send it instantly to Claude Code via MCP.
 
 ```
-Chrome Extension → POST https://api.clasp-it.com/element-context
-Claude Code      → MCP  https://api.clasp-it.com/mcp
+Chrome Extension → POST https://clasp-it-production.up.railway.app/element-context
+Claude Code      → MCP  https://clasp-it-production.up.railway.app/mcp
 ```
+
+---
 
 ## What Was Built
 
@@ -52,10 +54,13 @@ Claude Code      → MCP  https://api.clasp-it.com/mcp
 
 | File | What it does |
 |------|-------------|
-| `index.js` | Express app, CORS, mounts routes, starts on port 3001 |
-| `routes/element.js` | `POST /element-context` — stores picks, returns `{ success, id }` |
+| `index.js` | Express app, CORS, mounts routes, initialises DB schema on startup |
+| `routes/element.js` | `POST /element-context` — validates API key, rate limits, gates pro features, stores pick |
 | `routes/mcp.js` | `GET+POST /mcp` — MCP endpoint using `@modelcontextprotocol/sdk` |
-| `lib/storage.js` | Redis ring buffer (last 10 picks per user, 24h TTL) with in-memory fallback for local dev |
+| `routes/auth.js` | Auth + billing routes (signup, verify, API keys, Dodo Payments webhook + checkout) |
+| `lib/storage.js` | Redis ring buffer (last 10 picks per user, 1h TTL) with in-memory fallback |
+| `lib/auth.js` | API key generation/hashing, session management, `requireApiKey`/`requireSession` middleware, plan feature gating |
+| `lib/db.js` | Postgres connection pool + idempotent schema migrations |
 
 **MCP tools exposed to Claude Code:**
 
@@ -63,10 +68,40 @@ Claude Code      → MCP  https://api.clasp-it.com/mcp
 |------|-------------|
 | `get_element_context` | Returns the most recent pick |
 | `get_element_context_by_id` | Returns a specific pick by ID |
-| `list_recent_picks` | Returns last 10 picks |
+| `list_recent_picks` | Returns last N picks (default 10, max 20) — use for batch fixes |
 | `clear_context` | Clears all picks |
 
-Auth is per `X-API-Key` header. Defaults to `"dev"` if no key is provided (local dev only).
+---
+
+### Phase 2 — Auth, Billing, Feature Gating (complete)
+
+#### Authentication
+- **Magic link** email flow — no passwords
+- Session tokens stored in Redis (7-day TTL) with in-memory fallback
+- API keys in format `cit_<32 hex chars>` — SHA-256 hashed before storage, shown once
+
+#### Plans & Feature Gating
+
+| Feature | Free | Pro |
+|---------|------|-----|
+| Picks per day | 10 | Unlimited |
+| Screenshot | — | ✅ |
+| Console logs | — | ✅ |
+| Network requests | — | ✅ |
+| React props | — | ✅ |
+| Pick history | 5 | 50 |
+
+#### Payments — Dodo Payments
+- Monthly: $8/month
+- Annual: $72/year (25% off)
+- Webhook handles `subscription.active`, `subscription.renewed`, `subscription.updated`, `subscription.on_hold`, `subscription.failed`
+
+#### Infrastructure
+- **Postgres**: Neon (serverless, AWS us-east-1)
+- **Redis**: in-memory fallback (Upstash for production)
+- **Deployment**: Railway
+- **Email**: Resend (`Clasp It <hello@claspit.dev>`)
+- **Domain**: claspit.dev
 
 ---
 
@@ -75,23 +110,73 @@ Auth is per `X-API-Key` header. Defaults to `"dev"` if no key is provided (local
 **1. Start the server**
 ```bash
 cd server
+cp .env.example .env   # fill in your values
 npm install
 node index.js
-# → clasp-it listening on port 3001 (in-memory storage)
+# → clasp-it listening on port 3001
 ```
+
+Without `DATABASE_URL` the server runs fully in-memory (no auth enforcement).
+Without `REDIS_URL` picks are stored in-memory (lost on restart).
 
 **2. Load the extension**
 - Chrome → `chrome://extensions` → Enable Developer Mode → Load unpacked → select `extension/`
 
 **3. Add MCP to Claude Code**
 ```bash
-claude mcp add --transport http clasp-it http://localhost:3001/mcp
+claude mcp add --transport http --scope user clasp-it \
+  https://clasp-it-production.up.railway.app/mcp \
+  --header "X-API-Key: your_cit_key_here"
 ```
 
 **4. Use it**
 - Click the Clasp It icon on any webpage
 - Pick an element, type an instruction, hit Send
-- In Claude Code: `get the element I just picked and apply the change`
+- In Claude Code: *"fix the element I just picked"*
+- For batch fixes: pick multiple elements, then *"fix all my recent clasp-it picks"*
+
+---
+
+## Auth Flow
+
+```
+POST /auth/signup        { email }         → sends magic link email
+GET  /auth/verify/:token                  → validates link → session token
+GET  /auth/me            Bearer <session>  → user info, plan, API keys
+POST /auth/keys          Bearer <session>  → create API key (cit_...)
+DELETE /auth/keys/:id    Bearer <session>  → revoke API key
+POST /billing/checkout   Bearer <session>  { productId } → Dodo checkout URL
+GET  /billing/portal     Bearer <session>  → subscription info
+POST /auth/webhook                         → Dodo Payments webhook
+```
+
+---
+
+## Environment Variables
+
+```env
+# Server
+PORT=3001
+CORS_ORIGIN=*
+
+# Storage
+DATABASE_URL=postgresql://...   # Neon connection string
+REDIS_URL=redis://...           # Upstash or local Redis (optional)
+
+# Email
+RESEND_API_KEY=re_...
+RESEND_FROM=Clasp It <hello@claspit.dev>
+
+# Dodo Payments
+DODO_API_KEY=sk_...
+DODO_WEBHOOK_KEY=whsec_...
+DODO_PRODUCT_PRO_MONTHLY=prd_...
+DODO_PRODUCT_PRO_ANNUAL=prd_...
+DODO_ENV=live_mode              # test_mode | live_mode
+
+# App
+APP_URL=https://clasp-it-production.up.railway.app
+```
 
 ---
 
@@ -127,11 +212,9 @@ claude mcp add --transport http clasp-it http://localhost:3001/mcp
 
 ---
 
-## What's Next (Phase 2)
+## What's Next (Phase 3)
 
-- User auth (magic link or GitHub OAuth)
-- API key generation and validation
-- Stripe integration (Free / Pro $9/mo / Team $29/mo)
-- Plan-based feature gating (screenshot, console, network, React props on Pro+)
-- Rate limiting (Redis)
-- Website: landing page, pricing, dashboard
+- Website: landing page, pricing page, dashboard (manage API keys, view usage)
+- Upstash Redis for production pick persistence
+- Chrome Web Store submission
+- Custom domain (`api.claspit.dev`) on Railway
