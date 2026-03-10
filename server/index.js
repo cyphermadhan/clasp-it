@@ -5,6 +5,10 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 import elementRouter from './routes/element.js';
 import mcpRouter from './routes/mcp.js';
@@ -27,6 +31,7 @@ app.use(
 );
 
 app.use(express.json({ limit: '1mb' }));
+app.use(express.static(join(__dirname, 'public')));
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 

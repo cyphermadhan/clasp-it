@@ -3,109 +3,123 @@
 Pick any element on any webpage and send it instantly to Claude Code via MCP.
 
 ```
-Chrome Extension → POST https://clasp-it-production.up.railway.app/element-context
-Claude Code      → MCP  https://clasp-it-production.up.railway.app/mcp
+Chrome Extension → POST https://claspit.dev/element-context
+Claude Code      → MCP  https://claspit.dev/mcp
+```
+
+**Live at [claspit.dev](https://claspit.dev)**
+
+---
+
+## What It Does
+
+1. Click the Clasp It extension icon → Chrome side panel opens
+2. Click "Pick Element" → crosshair cursor activates
+3. Hover to highlight any element, click to select it
+4. Type an instruction in the floating prompt (Enter to send)
+5. Claude Code receives full context via MCP: HTML, CSS, React props, console logs, network requests
+
+---
+
+## MCP Setup
+
+After signing up and getting your API key in the extension:
+
+```bash
+claude mcp add --scope user --transport http clasp https://claspit.dev/mcp \
+  --header "Authorization: Bearer YOUR_API_KEY"
+```
+
+Then in Claude Code:
+- *"fix the element I just picked"*
+- *"fix all my recent clasp-it picks"*
+
+---
+
+## Repo Structure
+
+```
+clasp/
+├── extension/        Chrome MV3 extension
+│   ├── manifest.json       MV3 — sidePanel + tabs permissions
+│   ├── background.js       Opens side panel on icon click; buffers console/network logs
+│   ├── content.js          Element picker overlay + floating prompt dialog
+│   ├── styles.css          Picker overlay + floating dialog styles (CSS-isolated)
+│   ├── sidepanel.html      Chrome side panel UI
+│   └── sidepanel.js        Side panel logic (state machine: loading→auth→main→settings)
+└── server/           Express MCP server
+    ├── index.js
+    ├── routes/
+    │   ├── auth.js         Magic link auth, device polling, API keys, Dodo Payments
+    │   ├── element.js      POST /element-context + GET /picks/statuses
+    │   └── mcp.js          MCP endpoint + tools
+    ├── lib/
+    │   ├── auth.js         Key gen/hashing, requireApiKey middleware, plan feature gating
+    │   ├── db.js           Postgres (Neon) pool + schema migrations
+    │   └── storage.js      Redis pick storage (Upstash) with in-memory fallback
+    └── public/
+        ├── index.html      Landing page
+        └── verified.html   Magic link confirmation page
 ```
 
 ---
 
-## What Was Built
-
-### Phase 1 — Core (complete)
-
-#### Chrome Extension (`extension/`)
-
-| File | What it does |
-|------|-------------|
-| `manifest.json` | MV3 manifest — permissions, content script injection, service worker |
-| `content.js` | Element picker overlay, floating panel UI, sends picks to server |
-| `background.js` | Buffers console logs (last 50) and network requests (last 30), handles screenshots |
-| `styles.css` | Picker highlight overlay, tooltip, panel styles |
-| `panel.html` | Placeholder satisfying `web_accessible_resources`; real panel is injected inline by `content.js` |
-
-**How the extension works:**
-1. Click the extension icon → activates crosshair picker mode
-2. Hover over any element → blue highlight overlay + tooltip
-3. Click element → panel appears (bottom-right, fixed position)
-4. Configure context toggles or pick a preset, type an instruction, hit Send
-5. Extension POSTs the payload to the server with your API key
-
-**Panel presets:**
-
-| Preset | Captures |
-|--------|---------|
-| Style fix | DOM + computed styles |
-| Debug | DOM + styles + console logs + network requests |
-| Redesign | DOM + styles + screenshot + React props |
-| Full | Everything |
-
-**Context toggles:**
-- DOM & Selector (always on)
-- Computed Styles (always on)
-- Screenshot
-- Console Logs
-- Network Requests
-- React Props (shown only if React detected on the element)
-- Parent DOM Context
-
----
-
-#### Server (`server/`)
-
-| File | What it does |
-|------|-------------|
-| `index.js` | Express app, CORS, mounts routes, initialises DB schema on startup |
-| `routes/element.js` | `POST /element-context` — validates API key, rate limits, gates pro features, stores pick |
-| `routes/mcp.js` | `GET+POST /mcp` — MCP endpoint using `@modelcontextprotocol/sdk` |
-| `routes/auth.js` | Auth + billing routes (signup, verify, API keys, Dodo Payments webhook + checkout) |
-| `lib/storage.js` | Redis ring buffer (last 10 picks per user, 1h TTL) with in-memory fallback |
-| `lib/auth.js` | API key generation/hashing, session management, `requireApiKey`/`requireSession` middleware, plan feature gating |
-| `lib/db.js` | Postgres connection pool + idempotent schema migrations |
-
-**MCP tools exposed to Claude Code:**
-
-| Tool | Description |
-|------|-------------|
-| `get_element_context` | Returns the most recent pick |
-| `get_element_context_by_id` | Returns a specific pick by ID |
-| `list_recent_picks` | Returns last N picks (default 10, max 20) — use for batch fixes |
-| `clear_context` | Clears all picks |
-
----
-
-### Phase 2 — Auth, Billing, Feature Gating (complete)
-
-#### Authentication
-- **Magic link** email flow — no passwords
-- Session tokens stored in Redis (7-day TTL) with in-memory fallback
-- API keys in format `cit_<32 hex chars>` — SHA-256 hashed before storage, shown once
-
-#### Plans & Feature Gating
+## Plans
 
 | Feature | Free | Pro |
 |---------|------|-----|
 | Picks per day | 10 | Unlimited |
+| DOM & Computed Styles | ✅ | ✅ |
 | Screenshot | — | ✅ |
 | Console logs | — | ✅ |
 | Network requests | — | ✅ |
 | React props | — | ✅ |
-| Pick history | 5 | 50 |
-
-#### Payments — Dodo Payments
-- Monthly: $8/month
-- Annual: $72/year (25% off)
-- Webhook handles `subscription.active`, `subscription.renewed`, `subscription.updated`, `subscription.on_hold`, `subscription.failed`
-
-#### Infrastructure
-- **Postgres**: Neon (serverless, AWS us-east-1)
-- **Redis**: in-memory fallback (Upstash for production)
-- **Deployment**: Railway
-- **Email**: Resend (`Clasp It <hello@claspit.dev>`)
-- **Domain**: claspit.dev
+| Pick history | 10 | 50 |
+| Price | Free | $8/mo or $72/yr |
 
 ---
 
-## Quick Start (local dev)
+## Auth Flow
+
+```
+POST /auth/signup        { email, deviceId }  → sends magic link
+GET  /auth/poll/:deviceId                     → polls for verification (returns API key once verified)
+GET  /auth/verify/:token                      → magic link handler → marks device verified
+GET  /auth/info          Bearer <key>         → email + plan
+POST /billing/checkout   Bearer <key>         { productId } → Dodo checkout URL
+POST /billing/webhook                         → Dodo Payments webhook
+```
+
+The extension polls `/auth/poll/:deviceId` every 2s after signup. When the user clicks the magic link, the server marks the device verified, auto-creates an API key, and returns it on the next poll — no session tokens needed in the extension.
+
+---
+
+## MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `get_element_context` | Latest pick (auto-marks in_progress) |
+| `get_element_context_by_id` | Specific pick by ID |
+| `list_recent_picks` | Last N picks (default 10, max 20) |
+| `clear_context` | Clear all picks |
+| `update_pick_status` | Set status: not_started / in_progress / completed |
+
+---
+
+## Infrastructure
+
+| Service | What for |
+|---------|----------|
+| [Railway](https://railway.app) | Server hosting (Hobby plan ~$5/mo) |
+| [Neon](https://neon.tech) | Postgres — users, API keys, subscriptions |
+| [Upstash](https://upstash.com) | Redis — pick ring buffer (last 10 per user, 1h TTL) |
+| [Resend](https://resend.com) | Transactional email — magic links |
+| [Dodo Payments](https://dodopayments.com) | Subscriptions — Pro plan billing |
+| [Porkbun](https://porkbun.com) | claspit.dev domain |
+
+---
+
+## Local Dev
 
 **1. Start the server**
 ```bash
@@ -114,54 +128,21 @@ cp .env.example .env   # fill in your values
 npm install
 node index.js
 # → clasp-it listening on port 3001
+# Without DATABASE_URL: in-memory (no auth enforcement)
+# Without REDIS_URL: in-memory picks (lost on restart)
 ```
-
-Without `DATABASE_URL` the server runs fully in-memory (no auth enforcement).
-Without `REDIS_URL` picks are stored in-memory (lost on restart).
 
 **2. Load the extension**
 - Chrome → `chrome://extensions` → Enable Developer Mode → Load unpacked → select `extension/`
-
-**3. Add MCP to Claude Code**
-```bash
-claude mcp add --transport http --scope user clasp-it \
-  https://clasp-it-production.up.railway.app/mcp \
-  --header "X-API-Key: your_cit_key_here"
-```
-
-**4. Use it**
-- Click the Clasp It icon on any webpage
-- Pick an element, type an instruction, hit Send
-- In Claude Code: *"fix the element I just picked"*
-- For batch fixes: pick multiple elements, then *"fix all my recent clasp-it picks"*
-
----
-
-## Auth Flow
-
-```
-POST /auth/signup        { email }         → sends magic link email
-GET  /auth/verify/:token                  → validates link → session token
-GET  /auth/me            Bearer <session>  → user info, plan, API keys
-POST /auth/keys          Bearer <session>  → create API key (cit_...)
-DELETE /auth/keys/:id    Bearer <session>  → revoke API key
-POST /billing/checkout   Bearer <session>  { productId } → Dodo checkout URL
-GET  /billing/portal     Bearer <session>  → subscription info
-POST /auth/webhook                         → Dodo Payments webhook
-```
 
 ---
 
 ## Environment Variables
 
 ```env
-# Server
-PORT=3001
-CORS_ORIGIN=*
-
 # Storage
-DATABASE_URL=postgresql://...   # Neon connection string
-REDIS_URL=redis://...           # Upstash or local Redis (optional)
+DATABASE_URL=postgresql://...?sslmode=require   # Neon connection string
+REDIS_URL=rediss://...                           # Upstash Redis (rediss:// with double-s)
 
 # Email
 RESEND_API_KEY=re_...
@@ -175,46 +156,15 @@ DODO_PRODUCT_PRO_ANNUAL=prd_...
 DODO_ENV=live_mode              # test_mode | live_mode
 
 # App
-APP_URL=https://clasp-it-production.up.railway.app
+APP_URL=https://claspit.dev
+# PORT is auto-injected by Railway — do not set manually
 ```
 
 ---
 
-## Payload Shape
+## What's Next
 
-```json
-{
-  "id": "pick_1234567890",
-  "timestamp": "2026-03-09T10:30:00Z",
-  "prompt": "make this button use the primary variant",
-  "element": {
-    "selector": "nav > ul > li:nth-child(2) > button",
-    "tagName": "button",
-    "id": "",
-    "classList": ["btn", "btn-ghost"],
-    "attributes": { "data-variant": "ghost" },
-    "innerText": "Settings",
-    "innerHTML": "<span>Settings</span>",
-    "computedStyles": { "backgroundColor": "transparent", "border": "1px solid #0052CC" },
-    "dimensions": { "width": 120, "height": 36, "top": 64, "left": 240 }
-  },
-  "toggles": {
-    "dom": true,
-    "styles": true,
-    "screenshot": false,
-    "console": false,
-    "network": false,
-    "react": false,
-    "parent": false
-  }
-}
-```
-
----
-
-## What's Next (Phase 3)
-
-- Website: landing page, pricing page, dashboard (manage API keys, view usage)
-- Upstash Redis for production pick persistence
+- DNS: verify claspit.dev ALIAS record on Railway (SSL provisioning in progress)
+- Test full end-to-end auth flow (signup → magic link → /verified → API key → MCP)
 - Chrome Web Store submission
-- Custom domain (`api.claspit.dev`) on Railway
+- `www.claspit.dev` redirect

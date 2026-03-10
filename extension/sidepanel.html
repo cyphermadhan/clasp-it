@@ -720,7 +720,7 @@
     <div class="sp-mcp-body" id="sp-mcp-body">
       <p class="sp-mcp-hint">Add Clasp It as an MCP server in Claude Code so it can read your picks. The MCP key and extension key must be the same.</p>
       <p class="sp-mcp-step">1. Run in terminal (click to copy with your key):</p>
-      <div class="sp-mcp-code" id="sp-mcp-cmd" title="Click to copy">claude mcp add --scope user --transport http clasp https://clasp-it-production.up.railway.app/mcp --header "Authorization: Bearer YOUR_KEY"</div>
+      <div class="sp-mcp-code" id="sp-mcp-cmd" title="Click to copy">claude mcp add --scope user --transport http clasp https://claspit.dev/mcp --header "Authorization: Bearer YOUR_KEY"</div>
       <p class="sp-mcp-step">2. Restart Claude Code, then say: <em>"fix all recent picks using clasp-it"</em></p>
       <p class="sp-mcp-step" style="margin-top:4px;padding-top:8px;border-top:0.5px solid var(--border-faint)">To update the key later:</p>
       <div class="sp-mcp-code" title="Click to copy" onclick="navigator.clipboard.writeText('claude mcp remove clasp')">claude mcp remove clasp</div>

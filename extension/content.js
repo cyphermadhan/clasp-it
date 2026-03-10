@@ -1,7 +1,7 @@
 // Content script — Clasp It for Claude Code
 // Injected at document_idle on all pages.
 
-const SERVER_URL = "https://clasp-it-production.up.railway.app";
+const SERVER_URL = "https://claspit.dev";
 
 // Guard: side panel sets __claspItLoaded = false before programmatic re-injection.
 // Truthy value means script is already live — skip re-init.
@@ -210,13 +210,36 @@ function createFloatingDialog() {
   const div = document.createElement("div");
   div.id = "clasp-float-dialog";
   div.innerHTML = `
-    <input id="clasp-float-input" type="text" placeholder="What to change?" autocomplete="off" spellcheck="false"/>
-    <button id="clasp-float-submit">Clasp it!</button>
+    <div id="clasp-float-header">
+      <span id="clasp-float-label"></span>
+      <button id="clasp-float-close" title="Cancel">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M13.424 5.51172C13.7169 5.21883 14.1916 5.21883 14.4845 5.51172C14.7773 5.80462 14.7774 6.27942 14.4845 6.57227L11.0578 9.99805L14.4845 13.4248C14.7772 13.7177 14.7773 14.1925 14.4845 14.4854C14.1917 14.7779 13.7168 14.7779 13.424 14.4854L9.99723 11.0586L6.57145 14.4854C6.27857 14.7778 5.80368 14.778 5.5109 14.4854C5.21821 14.1926 5.21839 13.7177 5.5109 13.4248L8.93668 9.99805L5.5109 6.57227C5.21811 6.27947 5.2183 5.80463 5.5109 5.51172C5.80379 5.21883 6.27856 5.21883 6.57145 5.51172L9.99723 8.9375L13.424 5.51172Z" fill="#141413"/>
+        </svg>
+      </button>
+    </div>
+    <div id="clasp-float-input-wrap">
+      <div id="clasp-float-row-text">
+        <textarea id="clasp-float-input" placeholder="What to change?" rows="2" autocomplete="off" spellcheck="false"></textarea>
+      </div>
+      <div id="clasp-float-row-actions">
+        <button id="clasp-float-submit" title="Send">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M13.0306 7.53062C12.9609 7.60054 12.8781 7.65602 12.787 7.69387C12.6958 7.73173 12.5981 7.75121 12.4993 7.75121C12.4006 7.75121 12.3029 7.73173 12.2117 7.69387C12.1206 7.65602 12.0378 7.60054 11.9681 7.53062L8.74997 4.31249V13.5C8.74997 13.6989 8.67095 13.8897 8.5303 14.0303C8.38965 14.171 8.19889 14.25 7.99997 14.25C7.80106 14.25 7.61029 14.171 7.46964 14.0303C7.32899 13.8897 7.24997 13.6989 7.24997 13.5L7.24997 4.31249L4.0306 7.53062C3.8897 7.67152 3.69861 7.75067 3.49935 7.75067C3.30009 7.75067 3.10899 7.67152 2.9681 7.53062C2.8272 7.38972 2.74805 7.19863 2.74805 6.99937C2.74805 6.80011 2.8272 6.60902 2.9681 6.46812L7.4681 1.96812C7.53778 1.8982 7.62057 1.84272 7.71173 1.80487C7.8029 1.76701 7.90064 1.74753 7.99935 1.74753C8.09806 1.74753 8.1958 1.76701 8.28696 1.80487C8.37813 1.84272 8.46092 1.8982 8.5306 1.96812L13.0306 6.46812C13.1005 6.5378 13.156 6.62059 13.1938 6.71176C13.2317 6.80292 13.2512 6.90066 13.2512 6.99937C13.2512 7.09808 13.2317 7.19582 13.1938 7.28698C13.156 7.37815 13.1005 7.46094 13.0306 7.53062Z" fill="white"/>
+          </svg>
+        </button>
+      </div>
+    </div>
   `;
-  // Stop clicks/mousedown on the dialog from triggering the element picker
-  div.addEventListener("click", (e) => e.stopPropagation(), true);
-  div.addEventListener("mousedown", (e) => e.stopPropagation(), true);
+  div.addEventListener("click", (e) => e.stopPropagation());
+  div.addEventListener("mousedown", (e) => e.stopPropagation());
   document.body.appendChild(div);
+
+  document.getElementById("clasp-float-close").addEventListener("click", (e) => {
+    e.stopPropagation();
+    deactivatePicker();
+    chrome.runtime.sendMessage({ type: "PICKER_CANCELLED" }).catch(() => {});
+  });
 
   document.getElementById("clasp-float-submit").addEventListener("click", (e) => {
     e.stopPropagation();
@@ -224,7 +247,7 @@ function createFloatingDialog() {
   });
 
   document.getElementById("clasp-float-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       e.stopPropagation();
       submitFloatingDialog();
@@ -241,9 +264,19 @@ function createFloatingDialog() {
 
 function positionFloatingDialog(el) {
   if (!floatingDialog) return;
+
+  // Set element label in header
+  const labelEl = document.getElementById("clasp-float-label");
+  if (labelEl) {
+    const tag = el.tagName.toLowerCase();
+    const cls = el.classList[0] ? `.${el.classList[0]}` : "";
+    labelEl.textContent = tag + cls;
+  }
+
   const rect = el.getBoundingClientRect();
-  const dlgWidth = 260;
-  const margin = 10;
+  const dlgWidth = 288;
+  const dlgHeight = floatingDialog.offsetHeight || 180;
+  const margin = 12;
 
   let left = rect.right + margin;
   if (left + dlgWidth > window.innerWidth - margin) {
@@ -252,17 +285,16 @@ function positionFloatingDialog(el) {
   if (left < margin) left = margin;
 
   let top = rect.top;
-  if (top + 46 > window.innerHeight - margin) {
-    top = window.innerHeight - 46 - margin;
+  if (top + dlgHeight > window.innerHeight - margin) {
+    top = window.innerHeight - dlgHeight - margin;
   }
+  if (top < margin) top = margin;
 
-  floatingDialog.style.left = `${left}px`;
-  floatingDialog.style.top = `${top}px`;
-  floatingDialog.style.display = "flex";
+  floatingDialog.style.cssText = `display: flex !important; left: ${left}px !important; top: ${top}px !important;`;
 }
 
 function hideFloatingDialog() {
-  if (floatingDialog) floatingDialog.style.display = "none";
+  if (floatingDialog) floatingDialog.style.cssText = "display: none !important;";
 }
 
 function submitFloatingDialog() {

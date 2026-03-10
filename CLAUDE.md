@@ -11,31 +11,36 @@ clasp/
 │   ├── background.js       Opens side panel on icon click; buffers console/network
 │   ├── content.js          Element picker overlay + floating prompt dialog
 │   ├── styles.css          Picker overlay + floating dialog styles
-│   ├── sidepanel.html      Chrome side panel UI  ← IN PROGRESS (redesign paused)
-│   ├── sidepanel.js        Side panel logic       ← IN PROGRESS (redesign paused)
+│   ├── sidepanel.html      Chrome side panel UI  ✅ COMPLETE
+│   ├── sidepanel.js        Side panel logic       ✅ COMPLETE
 │   └── panel.html          Legacy placeholder (kept for web_accessible_resources)
 ├── server/           Express MCP server (auth, billing, storage, MCP endpoint)
 │   ├── index.js
+│   ├── public/             Static website (served by Express)
+│   │   ├── index.html      Landing page (single scroll — hero, how it works, setup, pricing)
+│   │   └── verified.html   Shown after magic link click
 │   ├── routes/
 │   │   ├── auth.js   Auth + billing (magic link, device polling, API keys, Dodo Payments)
 │   │   ├── element.js POST /element-context + GET /picks/statuses
 │   │   └── mcp.js    MCP endpoint + update_pick_status tool
 │   └── lib/
 │       ├── auth.js   Key gen, session, middleware, feature gating
-│       ├── db.js     Postgres (Neon) pool + schema migrations
+│       ├── db.js     Postgres (Neon) pool + schema migrations + SSL fix
 │       └── storage.js Redis/in-memory pick storage, device verification, pick status
-└── web/              Phase 3 — not built yet (Next.js planned)
 ```
 
 ## Production URLs
-- **Server**: `https://clasp-it-production.up.railway.app`
-- **MCP**: `https://clasp-it-production.up.railway.app/mcp`
-- **Domain**: claspit.dev (DNS not yet pointed to Railway)
+- **Server + Website**: `https://claspit.dev`
+- **MCP**: `https://claspit.dev/mcp`
+- **Old Railway URL**: `https://clasp-it-production.up.railway.app` (still works, same deployment)
 
 ## Infrastructure
-- **Hosting**: Railway (server), Neon (Postgres), in-memory (picks — Upstash Redis pending)
+- **Hosting**: Railway Hobby ($5/mo) — auto-deploys from GitHub main branch
+- **Database**: Neon (Postgres, serverless)
+- **Cache**: Upstash Redis (picks storage, sessions)
 - **Email**: Resend, sender `Clasp It <hello@claspit.dev>`
-- **Payments**: Dodo Payments (not Stripe — Stripe is invite-only in India)
+- **Payments**: Dodo Payments (not Stripe — invite-only in India)
+- **Domain**: claspit.dev → Railway via Porkbun ALIAS record
 - **Auth**: Magic link → device polling → API key auto-created (`cit_` prefix)
 
 ## Plans
@@ -46,58 +51,48 @@ clasp/
 | Pricing | Free (email required) | $8/mo or $72/yr |
 
 ## Key env vars (Railway)
-- `DATABASE_URL` — Neon connection string
+- `DATABASE_URL` — Neon connection string (`sslmode=require` — never `verify-full`)
+- `REDIS_URL` — Upstash Redis URL (`rediss://...`)
 - `RESEND_API_KEY`, `RESEND_FROM`
 - `DODO_API_KEY`, `DODO_WEBHOOK_KEY`, `DODO_PRODUCT_PRO_MONTHLY`, `DODO_PRODUCT_PRO_ANNUAL`, `DODO_ENV`
-- `APP_URL=https://clasp-it-production.up.railway.app`
-- `REDIS_URL` — not set yet (using in-memory fallback)
+- `APP_URL=https://claspit.dev`
+- `CORS_ORIGIN=*`
 
 ## What's done
 - ✅ Phase 1: Chrome extension + MCP server (element picker, context capture, MCP tools)
-- ✅ Phase 2: Auth (magic link), API keys, Dodo Payments, feature gating, rate limiting, Railway deploy
-- ✅ Side panel: Extension icon now opens Chrome side panel (not inline panel)
-- ✅ Server: Device polling auth flow (signup with deviceId → verify → poll for API key)
-- ✅ Server: Pick status tracking (not_started → in_progress → completed) + MCP update_pick_status tool
-- ✅ Server: GET /auth/info (plan + email via API key), GET /auth/poll/:deviceId, GET /picks/statuses
-- ✅ Extension: Floating prompt dialog next to hovered element during picking
+- ✅ Phase 2: Auth (magic link), API keys, Dodo Payments, feature gating, rate limiting
+- ✅ Phase 3 (partial): Landing page, /verified page, custom domain, Upstash Redis
+- ✅ Extension: Sidebar fully redesigned (complete state machine, history, feature gating)
+- ✅ Extension: Picker UX — hover highlights; click shows floating prompt dialog (Figma design)
+- ✅ Extension: Floating dialog uses custom SVG icons (close + ArrowUp), fully CSS-isolated
+- ✅ Extension: All URLs updated to claspit.dev
+- ✅ Server: Bearer token auth (`Authorization: Bearer`) alongside `X-API-Key`
+- ✅ Server: `initSchema()` non-fatal, SSL fix for Neon on Railway
+- ✅ Server: Static site served from `server/public/` via `express.static`
+- ✅ Infrastructure: Neon + Upstash Redis + Railway Hobby + claspit.dev domain all live
 
-## What's in progress (Phase 3 — sidebar redesign, PAUSED mid-session)
-The sidebar (sidepanel.html + sidepanel.js) needs a full redesign. Paused to get the
-correct design tokens from the Figma kit. Figma MCP server has been added for next session.
+## Picker UX flow
+1. User clicks "Pick Element" → picker activates (crosshair cursor, highlight overlay)
+2. Hovering highlights elements (no dialog shown yet)
+3. Clicking an element → picker deactivates → floating prompt dialog appears next to element
+4. Dialog shows element label (tag.class), textarea, close (X) button, orange send (↑) button
+5. Enter or send button → card added to sidebar history + picker re-activates
+6. Shift+Enter = newline in textarea
 
-### Sidebar redesign spec:
-**Screens/state machine:**
-1. `loading` — check storage for API key
-2. `auth` — email input → "Get free API key" (or paste existing key)
-3. `verifying` — "check your email" + polls GET /auth/poll/:deviceId every 2s
-4. `main` — pick button + history list + gear icon
-5. `picking` — "click any element..." + cancel
-6. `picked` — element form (toggles gated by plan, presets, prompt, send)
-7. `settings` — email, plan badge, upgrade link, API key display, sign out
+## Floating dialog CSS isolation
+All `#clasp-float-*` elements use `all: initial !important` to prevent host page CSS bleeding in.
+Event listeners use bubble phase (not capture) so child button clicks aren't intercepted by parent.
 
-**Feature gating by plan:**
-- Free: DOM & Selector + Computed Styles only (pro toggles greyed with "PRO" badge)
-- Pro: all toggles available
-- Plan fetched via GET /auth/info after auth
-
-**History:**
-- Stored in chrome.storage.local as array (max 50 pro / 10 free)
-- Each item: { id, pickId, elementLabel, pageURL, prompt, status, sentAt }
-- Status: not_started | in_progress | completed (polled from GET /picks/statuses every 5s)
-- Status badges shown in history list
-
-**Quick send (floating dialog):**
-- When user submits floating dialog (Enter or button), sends ELEMENT_PICKED with quickSend:true
-- Sidebar handles quickSend by auto-sending with current toggle settings (no form shown)
-- After send, switches to main state + adds item to history
-
-**Design:** Use "MCP Apps for Claude" Figma kit tokens (Figma MCP added, read next session)
-
-## Server API added this session
+## Server API
 ```
-GET  /auth/poll/:deviceId   — poll for magic link verification (no auth)
-GET  /auth/info             — email + plan for API key (X-API-Key auth)
-GET  /picks/statuses?ids=   — status map for pick IDs (X-API-Key auth)
+POST /auth/signup              — register email + deviceId (magic link sent)
+GET  /auth/verify/:token       — validate magic link → redirect to /verified
+GET  /auth/poll/:deviceId      — poll for magic link verification (no auth)
+GET  /auth/info                — email + plan for API key (X-API-Key or Bearer auth)
+POST /element-context          — store a pick (X-API-Key or Bearer auth)
+GET  /picks/statuses?ids=      — status map for pick IDs
+POST /billing/checkout         — create Dodo checkout session
+POST /billing/webhook          — Dodo webhook handler
 ```
 
 ## MCP tools
@@ -109,15 +104,55 @@ GET  /picks/statuses?ids=   — status map for pick IDs (X-API-Key auth)
 | `clear_context` | Clear all picks |
 | `update_pick_status` | Set status: not_started / in_progress / completed |
 
-## What's next (next session)
-1. Read Figma tokens via Figma MCP server (added: `claude mcp add --scope user --transport http figma https://mcp.figma.com/mcp`)
-2. Rewrite sidepanel.html + sidepanel.js using Claude MCP Apps design tokens
-3. Add `GET /verified` page to server (shown after magic link click — "You're verified, close this tab")
-4. Deploy server to Railway (picks up new routes/schema)
-5. Phase 3: web/ Next.js site, Upstash Redis, Chrome Web Store
+## MCP install command
+```
+claude mcp add --scope user --transport http clasp https://claspit.dev/mcp --header "Authorization: Bearer YOUR_API_KEY"
+```
+To update the key later: `claude mcp remove clasp` then re-add.
+
+## Sidebar state machine
+1. `loading` — check chrome.storage for API key
+2. `auth` — email input → "Get free API key" (or paste existing key)
+3. `verifying` — "check your email" + polls GET /auth/poll/:deviceId every 2s
+4. `main` — pick button + history list (status badges) + gear icon + Claude tip
+5. `picking` — "click any element..." + cancel
+6. `picked` — (not used in quick-send flow; quick-send goes straight to main)
+7. `settings` — email, plan badge, upgrade button, API key display, sign out, MCP setup
+
+## History items
+- Stored in chrome.storage.local (max 50 pro / 10 free)
+- Each item: `{ id, pickId, elementLabel, pageURL, prompt, status, sentAt }`
+- Status: `not_started | in_progress | completed` — polled from GET /picks/statuses every 5s
+- `not_started` items show ✕ delete button; other statuses show badge
+- Prompt text shown inline under element label
+
+## Feature gating
+- Free: DOM & Selector + Computed Styles only (pro toggles greyed with "PRO" badge)
+- Pro: all toggles available (screenshot, console, network, react, parent)
+- Plan fetched via GET /auth/info after auth
+
+## Website (server/public/)
+- Single scrolling page — no separate dashboard, no login
+- All account management done in the Chrome extension
+- Pages: `index.html` (landing), `verified.html` (post magic-link)
+
+## What's next
+1. Chrome Web Store submission
+2. Test full auth flow end to end (sign up → magic link → API key → MCP)
+3. `www.claspit.dev` redirect (optional)
 
 ## Coding conventions
 - ES modules (`"type": "module"` in package.json)
 - No TypeScript — plain JS throughout
 - Graceful degradation: no `DATABASE_URL` → in-memory; no `REDIS_URL` → in-memory
 - Never use Stripe (invite-only in India) — Dodo Payments only
+- Auth: accept both `X-API-Key` header and `Authorization: Bearer` in `requireApiKey` middleware
+
+## Infrastructure gotchas
+- **Neon SSL**: always use `sslmode=require` in DATABASE_URL — never `sslmode=verify-full`. `db.js` adds `ssl: { rejectUnauthorized: false }` for Neon URLs as safety net.
+- **Redis**: Upstash URL format is `rediss://` (double s) — not `redis://`
+- **Railway PORT**: do not set PORT manually — Railway auto-injects it. App listens on `process.env.PORT ?? 3001`.
+- **DB outage = in-memory fallback**: wrong DATABASE_URL causes silent fallback. After fixing, users must re-authenticate.
+- **CORS**: extension needs `host_permissions` in manifest for the server URL — reload extension after URL changes.
+- **MCP auth test**: `curl https://claspit.dev/auth/info -H "Authorization: Bearer KEY"`
+- **DNS**: claspit.dev uses ALIAS record on Porkbun (not CNAME — root domain restriction). TXT `_railway-verify` for Railway verification.

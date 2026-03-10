@@ -12,7 +12,10 @@ const { Pool } = pg;
 let pool = null;
 
 if (process.env.DATABASE_URL) {
-  pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL.includes('neon') ? { rejectUnauthorized: false } : undefined,
+  });
   pool.on('error', (err) => console.error('[db] Pool error:', err.message));
 } else {
   console.warn('[db] DATABASE_URL not set — Postgres features disabled');

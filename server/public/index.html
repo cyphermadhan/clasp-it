@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clasp It — Pick any element. Fix it with Claude.</title>
+  <meta name="description" content="Click any element on any webpage and send its context to Claude Code instantly. One click captures HTML, CSS, React props, console logs and more." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent: #c6613f;
+      --accent-dark: #a84e30;
+      --text: #141413;
+      --text-secondary: #73726c;
+      --bg: #faf9f7;
+      --bg-card: #ffffff;
+      --border: rgba(31, 30, 29, 0.12);
+      --radius: 12px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    /* ── Nav ── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 40px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .nav-logo {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.3px;
+    }
+
+    .nav-logo span {
+      color: var(--accent);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: var(--accent-dark); }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover { background: rgba(0,0,0,0.04); }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center;
+      padding: 80px 24px 64px;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(198, 97, 63, 0.08);
+      color: var(--accent);
+      border: 1px solid rgba(198, 97, 63, 0.2);
+      border-radius: 99px;
+      padding: 4px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 28px;
+    }
+
+    .hero h1 {
+      font-size: clamp(36px, 6vw, 56px);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -1.5px;
+      color: var(--text);
+      margin-bottom: 20px;
+    }
+
+    .hero h1 em {
+      font-style: normal;
+      color: var(--accent);
+    }
+
+    .hero p {
+      font-size: 18px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-bottom: 36px;
+      max-width: 520px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .hero-actions .btn {
+      padding: 12px 24px;
+      font-size: 15px;
+    }
+
+    /* ── Steps ── */
+    .steps {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 0 24px 96px;
+    }
+
+    .section-label {
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 48px;
+    }
+
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2px;
+    }
+
+    .step {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      position: relative;
+    }
+
+    .step:first-child { border-radius: 12px 4px 4px 12px; }
+    .step:last-child  { border-radius: 4px 12px 12px 4px; }
+
+    .step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(198, 97, 63, 0.1);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .step h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .step p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* ── Setup ── */
+    .setup {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 24px 96px;
+      text-align: center;
+    }
+
+    .setup h2 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 12px;
+    }
+
+    .setup > p {
+      color: var(--text-secondary);
+      margin-bottom: 36px;
+      font-size: 16px;
+    }
+
+    .setup-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      text-align: left;
+    }
+
+    .setup-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .setup-step-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .setup-step-body h4 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .setup-step-body p {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    code {
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 12px;
+      background: rgba(0,0,0,0.05);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--text);
+      word-break: break-all;
+    }
+
+    /* ── Pricing ── */
+    .pricing {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 24px 96px;
+      text-align: center;
+    }
+
+    .pricing h2 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 12px;
+    }
+
+    .pricing > p {
+      color: var(--text-secondary);
+      font-size: 16px;
+      margin-bottom: 36px;
+    }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      text-align: left;
+    }
+
+    .plan {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+
+    .plan.pro {
+      border-color: var(--accent);
+      background: rgba(198, 97, 63, 0.03);
+    }
+
+    .plan-name {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .plan.pro .plan-name { color: var(--accent); }
+
+    .plan-price {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -1px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .plan-price span {
+      font-size: 15px;
+      font-weight: 400;
+      color: var(--text-secondary);
+      letter-spacing: 0;
+    }
+
+    .plan-desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+    }
+
+    .plan-features {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .plan-features li {
+      font-size: 13px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .plan-features li::before {
+      content: '';
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: rgba(198, 97, 63, 0.15);
+      background-image: url("data:image/svg+xml,%3Csvg width='10' height='8' viewBox='0 0 10 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4L3.5 6.5L9 1' stroke='%23c6613f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: center;
+      flex-shrink: 0;
+    }
+
+    .plan-features li.muted { color: rgba(115, 114, 108, 0.5); }
+    .plan-features li.muted::before {
+      background-image: url("data:image/svg+xml,%3Csvg width='8' height='2' viewBox='0 0 8 2' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1H7' stroke='%23bbb' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-color: rgba(0,0,0,0.05);
+    }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 40px;
+      max-width: 1000px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    footer p {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    footer a {
+      font-size: 13px;
+      color: var(--text-secondary);
+      transition: color 0.15s;
+    }
+
+    footer a:hover { color: var(--text); }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      nav { padding: 16px 20px; }
+      .hero { padding: 56px 20px 48px; }
+      .steps-grid { grid-template-columns: 1fr; gap: 8px; }
+      .step:first-child,
+      .step:last-child,
+      .step { border-radius: var(--radius); }
+      .pricing-grid { grid-template-columns: 1fr; }
+      footer { padding: 24px 20px; flex-direction: column; align-items: flex-start; gap: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav>
+    <div class="nav-logo">clasp<span>it</span></div>
+    <a href="https://chrome.google.com/webstore" class="btn btn-primary">Add to Chrome</a>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-badge">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" fill="#c6613f" opacity="0.3"/><circle cx="6" cy="6" r="2.5" fill="#c6613f"/></svg>
+      Chrome Extension + MCP Server
+    </div>
+    <h1>Pick any element.<br /><em>Fix it with Claude.</em></h1>
+    <p>Click any element on any webpage. Clasp It captures the HTML, CSS, and context — Claude Code reads it and makes the edit.</p>
+    <div class="hero-actions">
+      <a href="https://chrome.google.com/webstore" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v6M5 8h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Add to Chrome — it's free
+      </a>
+      <a href="#setup" class="btn btn-ghost">See setup →</a>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="steps">
+    <p class="section-label">How it works</p>
+    <div class="steps-grid">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Pick an element</h3>
+        <p>Click the Clasp It icon, then click any element on any webpage. A prompt box appears.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Describe the change</h3>
+        <p>Type what you want — "make this button bigger", "fix the spacing", "change to primary style".</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Claude fixes it</h3>
+        <p>Switch to Claude Code and say "fix my recent picks". It reads the context and edits your code.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Setup -->
+  <section class="setup" id="setup">
+    <h2>Two-minute setup</h2>
+    <p>One extension, one terminal command. That's it.</p>
+    <div class="setup-steps">
+      <div class="setup-step">
+        <div class="setup-step-num">1</div>
+        <div class="setup-step-body">
+          <h4>Install the Chrome extension</h4>
+          <p>Add Clasp It from the Chrome Web Store. Sign up with your email to get a free API key.</p>
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="setup-step-num">2</div>
+        <div class="setup-step-body">
+          <h4>Connect to Claude Code</h4>
+          <p>Run once in your terminal — your API key is shown in the extension settings.</p>
+          <p style="margin-top:8px"><code>claude mcp add --scope user --transport http clasp https://claspit.dev/mcp --header "Authorization: Bearer YOUR_KEY"</code></p>
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="setup-step-num">3</div>
+        <div class="setup-step-body">
+          <h4>Start picking</h4>
+          <p>Click any element, type your instruction, hit send. Then tell Claude Code: <em>"fix all recent picks using clasp-it"</em>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section class="pricing">
+    <h2>Simple pricing</h2>
+    <p>Free to start. Upgrade when you need more.</p>
+    <div class="pricing-grid">
+      <div class="plan">
+        <p class="plan-name">Free</p>
+        <p class="plan-price">$0</p>
+        <p class="plan-desc">10 picks per day, always free.</p>
+        <ul class="plan-features">
+          <li>DOM &amp; selector</li>
+          <li>Computed styles</li>
+          <li>10 picks / day</li>
+          <li class="muted">Screenshot</li>
+          <li class="muted">Console logs</li>
+          <li class="muted">Network requests</li>
+          <li class="muted">React props</li>
+        </ul>
+      </div>
+      <div class="plan pro">
+        <p class="plan-name">Pro</p>
+        <p class="plan-price">$8 <span>/ month</span></p>
+        <p class="plan-desc">Unlimited picks + full context capture.</p>
+        <ul class="plan-features">
+          <li>Everything in Free</li>
+          <li>Unlimited picks</li>
+          <li>Screenshot</li>
+          <li>Console logs</li>
+          <li>Network requests</li>
+          <li>React props</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <p>© 2026 Clasp It</p>
+    <div class="footer-links">
+      <a href="mailto:hello@claspit.dev">hello@claspit.dev</a>
+      <a href="#setup">Setup docs</a>
+    </div>
+  </footer>
+
+</body>
+</html>

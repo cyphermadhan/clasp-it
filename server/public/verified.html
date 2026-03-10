@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verified — Clasp It</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #faf9f7;
+      color: #141413;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .card {
+      text-align: center;
+      max-width: 380px;
+      padding: 0 24px;
+    }
+
+    .icon {
+      width: 56px;
+      height: 56px;
+      background: rgba(198, 97, 63, 0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 10px;
+    }
+
+    p {
+      font-size: 15px;
+      color: #73726c;
+      line-height: 1.6;
+    }
+
+    .nav-logo {
+      position: fixed;
+      top: 24px;
+      left: 32px;
+      font-size: 17px;
+      font-weight: 600;
+      color: #141413;
+      text-decoration: none;
+    }
+
+    .nav-logo span { color: #c6613f; }
+  </style>
+</head>
+<body>
+  <a href="/" class="nav-logo">clasp<span>it</span></a>
+  <div class="card">
+    <div class="icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M5 13l4 4L19 7" stroke="#c6613f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h1>You're verified!</h1>
+    <p>Your API key has been created. Return to the Clasp It extension — it should be ready to use.</p>
+  </div>
+</body>
+</html>

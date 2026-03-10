@@ -1,6 +1,6 @@
 // Side panel — Clasp It for Claude Code
 
-const SERVER_URL = "https://clasp-it-production.up.railway.app";
+const SERVER_URL = "https://claspit.dev";
 
 const PRO_TOGGLE_IDS = [
   "sp-toggle-screenshot",
@@ -655,6 +655,12 @@ function renderSettings() {
   } else {
     chip.textContent = "—";
   }
+
+  // Pre-fill MCP command with the real key so any copy method works
+  const mcpCmd = document.getElementById("sp-mcp-cmd");
+  if (mcpCmd && app.apiKey) {
+    mcpCmd.textContent = mcpCmd.textContent.replace("YOUR_KEY", app.apiKey);
+  }
 }
 
 // ── MCP setup toggle ─────────────────────────────────────────────────────────
@@ -667,7 +673,6 @@ document.getElementById("sp-mcp-toggle").addEventListener("click", () => {
 });
 
 document.getElementById("sp-mcp-cmd").addEventListener("click", function () {
-  if (app.apiKey) this.textContent = this.textContent.replace("YOUR_KEY", app.apiKey);
   navigator.clipboard.writeText(this.textContent).then(() => {
     const orig = this.textContent;
     this.textContent = "Copied!";
