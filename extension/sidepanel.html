@@ -718,11 +718,13 @@
       <svg id="sp-mcp-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;transition:transform 0.2s"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
     <div class="sp-mcp-body" id="sp-mcp-body">
-      <p class="sp-mcp-hint">Add Clasp It as an MCP server in Claude Code so it can read your picks.</p>
-      <p class="sp-mcp-step">1. Copy your API key above, then run in terminal:</p>
-      <div class="sp-mcp-code" id="sp-mcp-cmd" title="Click to copy">claude mcp add --transport http clasp https://clasp-it-production.up.railway.app/mcp --header "X-API-Key: YOUR_KEY"</div>
-      <p class="sp-mcp-step">2. Replace <code>YOUR_KEY</code> with your key, then restart Claude Code.</p>
-      <p class="sp-mcp-step">3. In Claude, say: <em>"fix all recent picks using clasp-it"</em></p>
+      <p class="sp-mcp-hint">Add Clasp It as an MCP server in Claude Code so it can read your picks. The MCP key and extension key must be the same.</p>
+      <p class="sp-mcp-step">1. Run in terminal (click to copy with your key):</p>
+      <div class="sp-mcp-code" id="sp-mcp-cmd" title="Click to copy">claude mcp add --scope user --transport http clasp https://clasp-it-production.up.railway.app/mcp --header "Authorization: Bearer YOUR_KEY"</div>
+      <p class="sp-mcp-step">2. Restart Claude Code, then say: <em>"fix all recent picks using clasp-it"</em></p>
+      <p class="sp-mcp-step" style="margin-top:4px;padding-top:8px;border-top:0.5px solid var(--border-faint)">To update the key later:</p>
+      <div class="sp-mcp-code" title="Click to copy" onclick="navigator.clipboard.writeText('claude mcp remove clasp')">claude mcp remove clasp</div>
+      <p class="sp-mcp-step">Then re-run step 1 with the new key.</p>
     </div>
   </div>
 

@@ -107,9 +107,12 @@ export async function resolveSession(token) {
  * Attaches req.userId (string) and req.userPlan (string) to the request.
  */
 export async function requireApiKey(req, res, next) {
-  const raw = req.headers['x-api-key'];
+  // Accept both X-API-Key header and Authorization: Bearer <key>
+  const auth = req.headers['authorization'];
+  const raw = req.headers['x-api-key'] ||
+    (auth?.startsWith('Bearer ') ? auth.slice(7) : null);
   if (!raw) {
-    return res.status(401).json({ error: 'Missing X-API-Key header' });
+    return res.status(401).json({ error: 'Missing X-API-Key or Authorization header' });
   }
 
   // Dev mode: no database, use key as userId with full access
