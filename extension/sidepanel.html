@@ -251,6 +251,11 @@
       overflow: hidden; text-overflow: ellipsis;
     }
 
+    .sp-history-prompt {
+      font-size: 12px; color: var(--text-secondary); margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
     .sp-history-meta {
       font-size: 11px; color: var(--text-tertiary); margin-top: 2px;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -261,6 +266,14 @@
       padding: 2px 7px; border-radius: var(--radius-full);
       font-size: 10px; font-weight: 500; flex-shrink: 0; margin-top: 2px;
     }
+    .sp-delete-btn {
+      flex-shrink: 0; background: none; border: none; cursor: pointer;
+      color: var(--text-ghost); font-size: 11px; padding: 2px 5px;
+      border-radius: var(--radius-xs); line-height: 1; margin-top: 2px;
+      transition: background 0.1s, color 0.1s;
+    }
+    .sp-delete-btn:hover { background: var(--bg-danger-subtle); color: var(--text-danger); }
+
     .sp-status-badge.not_started { background: var(--bg-secondary); color: var(--text-tertiary); }
     .sp-status-badge.in_progress { background: #fff8e1; color: #7a5a00; }
     .sp-status-badge.completed   { background: var(--bg-success); color: var(--text-success); }
@@ -422,6 +435,54 @@
     .sp-link:hover { text-decoration: underline; }
 
     .sp-spacer { flex: 1; }
+
+    /* ── Claude tip ── */
+    .sp-claude-tip {
+      margin: 4px 14px 6px;
+      padding: 9px 12px;
+      background: var(--bg-secondary);
+      border: 0.5px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      display: flex;
+      align-items: flex-start;
+      gap: 7px;
+    }
+
+    /* ── MCP setup ── */
+    .sp-mcp-setup {
+      border: 0.5px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .sp-mcp-toggle {
+      width: 100%; display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 12px; background: none; border: none; cursor: pointer;
+      font-size: 12px; font-weight: 500; color: var(--text-secondary);
+      font-family: var(--font-sans); text-align: left;
+      transition: background 0.1s;
+    }
+    .sp-mcp-toggle:hover { background: var(--bg-secondary); }
+    .sp-mcp-body {
+      display: none;
+      flex-direction: column; gap: 8px;
+      padding: 4px 12px 12px;
+      border-top: 0.5px solid var(--border-faint);
+    }
+    .sp-mcp-body.open { display: flex; }
+    .sp-mcp-hint { font-size: 12px; color: var(--text-tertiary); line-height: 1.5; }
+    .sp-mcp-step { font-size: 11px; color: var(--text-tertiary); line-height: 1.5; }
+    .sp-mcp-step code, .sp-mcp-step em { color: var(--text-primary); font-style: normal; }
+    .sp-mcp-code {
+      font-family: var(--font-mono); font-size: 10px; color: var(--text-secondary);
+      background: var(--bg-secondary); padding: 8px 10px;
+      border-radius: var(--radius-sm); border: 0.5px solid var(--border-faint);
+      cursor: pointer; word-break: break-all; line-height: 1.6;
+      transition: border-color 0.15s;
+    }
+    .sp-mcp-code:hover { border-color: var(--border-medium); }
   </style>
 </head>
 <body>
@@ -499,9 +560,14 @@
       </svg>
       Pick Element
     </button>
+    <div id="sp-pick-status" style="font-size:11px;color:var(--text-danger);margin-top:6px;min-height:14px;text-align:center;"></div>
   </div>
   <div class="sp-history-section">
     <div class="sp-history-header">Recent picks</div>
+    <div id="sp-claude-tip" class="sp-claude-tip" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span>Open Claude Code and say<br><strong>"fix all recent picks using clasp-it"</strong></span>
+    </div>
     <div id="sp-history-empty" class="sp-history-empty">No picks yet.<br>Click the button above to get started.</div>
     <div id="sp-history-list"></div>
   </div>
@@ -642,6 +708,21 @@
     <div class="sp-card-row">
       <span class="sp-card-label">API Key</span>
       <span id="settings-key-chip" class="sp-key-chip" title="Click to copy">—</span>
+    </div>
+  </div>
+
+  <!-- MCP setup — collapsible -->
+  <div class="sp-mcp-setup">
+    <button class="sp-mcp-toggle" id="sp-mcp-toggle">
+      <span>MCP server setup</span>
+      <svg id="sp-mcp-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;transition:transform 0.2s"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div class="sp-mcp-body" id="sp-mcp-body">
+      <p class="sp-mcp-hint">Add Clasp It as an MCP server in Claude Code so it can read your picks.</p>
+      <p class="sp-mcp-step">1. Copy your API key above, then run in terminal:</p>
+      <div class="sp-mcp-code" id="sp-mcp-cmd" title="Click to copy">claude mcp add --transport http clasp https://clasp-it-production.up.railway.app/mcp --header "X-API-Key: YOUR_KEY"</div>
+      <p class="sp-mcp-step">2. Replace <code>YOUR_KEY</code> with your key, then restart Claude Code.</p>
+      <p class="sp-mcp-step">3. In Claude, say: <em>"fix all recent picks using clasp-it"</em></p>
     </div>
   </div>
 

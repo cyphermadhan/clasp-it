@@ -3,11 +3,15 @@
 
 const SERVER_URL = "https://clasp-it-production.up.railway.app";
 
-// Guard against double-injection (programmatic re-injection after extension reload)
-if (window.__claspItLoaded) {
-  throw new Error("[ClaspIt] content script already loaded — skipping re-init");
-}
+// Guard: side panel sets __claspItLoaded = false before programmatic re-injection.
+// Truthy value means script is already live — skip re-init.
+if (window.__claspItLoaded) throw new Error();
 window.__claspItLoaded = true;
+
+// Remove any leftover DOM elements from a previous script instance
+["clasp-float-dialog", "bp-highlight-overlay", "bp-tooltip"].forEach(id => {
+  document.getElementById(id)?.remove();
+});
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let pickerActive = false;
@@ -207,7 +211,7 @@ function createFloatingDialog() {
   div.id = "clasp-float-dialog";
   div.innerHTML = `
     <input id="clasp-float-input" type="text" placeholder="What to change?" autocomplete="off" spellcheck="false"/>
-    <button id="clasp-float-submit">Clasp →</button>
+    <button id="clasp-float-submit">Clasp it!</button>
   `;
   // Stop clicks/mousedown on the dialog from triggering the element picker
   div.addEventListener("click", (e) => e.stopPropagation(), true);
@@ -286,7 +290,8 @@ function onPickerClick(e) {
   e.preventDefault();
   e.stopPropagation();
 
-  const el = currentTarget || e.target;
+  currentTarget = currentTarget || e.target;
+  const el = currentTarget;
 
   // Stop picking but keep dialog visible so user can type a prompt
   pickerActive = false;
@@ -343,6 +348,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   } else if (message.type === "CANCEL_PICKING") {
     deactivatePicker();
     chrome.runtime.sendMessage({ type: "PICKER_CANCELLED" }).catch(() => {});
+    sendResponse({ ok: true });
+  } else if (message.type === "PANEL_CLOSING") {
+    deactivatePicker();
     sendResponse({ ok: true });
   }
   return false;

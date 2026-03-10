@@ -204,25 +204,38 @@ document.getElementById("sp-pick-btn").addEventListener("click", startPicking);
 
 async function startPicking() {
   const tab = await getActiveTab();
-  if (!tab?.id) return;
+  if (!tab?.id) {
+    setPickStatus("No active tab found");
+    return;
+  }
+
   // Try direct send first (content script already running)
   try {
     await chrome.tabs.sendMessage(tab.id, { type: "START_PICKING" });
     showScreen("picking");
     return;
-  } catch { /* not loaded or connection dead — fall through to inject */ }
+  } catch { /* not loaded or connection stale — fall through to inject */ }
 
-  // Inject (clearing stale flag first so content.js re-initialises cleanly)
+  // Re-inject: reset flag so content.js re-initialises cleanly
   try {
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: () => { delete window.__claspItLoaded; },
+      func: () => { window.__claspItLoaded = false; },
     });
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
     await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ["styles.css"] });
     await chrome.tabs.sendMessage(tab.id, { type: "START_PICKING" });
     showScreen("picking");
-  } catch { /* tab not injectable (chrome://, extension pages, etc.) */ }
+  } catch {
+    setPickStatus("Can't pick on this page — try a regular website");
+  }
+}
+
+function setPickStatus(msg) {
+  const el = document.getElementById("sp-pick-status");
+  if (!el) return;
+  el.textContent = msg;
+  if (msg) setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 3000);
 }
 
 document.getElementById("sp-cancel-btn").addEventListener("click", async () => {
@@ -232,7 +245,8 @@ document.getElementById("sp-cancel-btn").addEventListener("click", async () => {
 });
 
 async function getActiveTab() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  // lastFocusedWindow is more reliable than currentWindow from a side panel context
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   return tab || null;
 }
 
@@ -500,20 +514,40 @@ function renderHistory() {
 
   if (empty) empty.style.display = "none";
 
+  // Show tip when there are pending picks
+  const tip = document.getElementById("sp-claude-tip");
+  if (tip) tip.style.display = app.history.some(h => h.status !== "completed") ? "" : "none";
+
   list.innerHTML = app.history.map(item => {
     const statusLabel = { not_started: "Waiting", in_progress: "In progress", completed: "Done" }[item.status] || "Waiting";
     const statusClass = item.status || "not_started";
     const time  = relativeTime(item.sentAt);
     const label = esc(item.elementLabel || "element");
     const url   = esc(shortUrl(item.pageURL || ""));
-    return `<div class="sp-history-item">
+    const canDelete = !item.status || item.status === "not_started";
+    const prompt = item.prompt ? esc(item.prompt) : "";
+    return `<div class="sp-history-item" data-id="${esc(item.id)}">
       <div class="sp-history-body">
         <div class="sp-history-label">${label}</div>
+        ${prompt ? `<div class="sp-history-prompt">${prompt}</div>` : ""}
         <div class="sp-history-meta">${url}${url ? " · " : ""}${time}</div>
       </div>
-      <span class="sp-status-badge ${esc(statusClass)}">${esc(statusLabel)}</span>
+      ${canDelete
+        ? `<button class="sp-delete-btn" data-id="${esc(item.id)}" title="Delete">✕</button>`
+        : `<span class="sp-status-badge ${esc(statusClass)}">${esc(statusLabel)}</span>`
+      }
     </div>`;
   }).join("");
+
+  list.querySelectorAll(".sp-delete-btn").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      app.history = app.history.filter(h => h.id !== id);
+      await storageSet({ clasp_history: app.history });
+      renderHistory();
+    });
+  });
 }
 
 function shortUrl(url) {
@@ -622,6 +656,31 @@ function renderSettings() {
     chip.textContent = "—";
   }
 }
+
+// ── MCP setup toggle ─────────────────────────────────────────────────────────
+
+document.getElementById("sp-mcp-toggle").addEventListener("click", () => {
+  const body    = document.getElementById("sp-mcp-body");
+  const chevron = document.getElementById("sp-mcp-chevron");
+  const open    = body.classList.toggle("open");
+  chevron.style.transform = open ? "rotate(180deg)" : "";
+});
+
+document.getElementById("sp-mcp-cmd").addEventListener("click", function () {
+  if (app.apiKey) this.textContent = this.textContent.replace("YOUR_KEY", app.apiKey);
+  navigator.clipboard.writeText(this.textContent).then(() => {
+    const orig = this.textContent;
+    this.textContent = "Copied!";
+    setTimeout(() => { this.textContent = orig; }, 1500);
+  }).catch(() => {});
+});
+
+// ── Cleanup on panel close ────────────────────────────────────────────────────
+
+window.addEventListener("pagehide", async () => {
+  const tab = await getActiveTab().catch(() => null);
+  if (tab?.id) chrome.tabs.sendMessage(tab.id, { type: "PANEL_CLOSING" }).catch(() => {});
+});
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 

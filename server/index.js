@@ -65,7 +65,8 @@ app.use((err, _req, res, _next) => {
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
 
 // Initialise Postgres schema (idempotent) then start listening.
-await initSchema();
+// Non-fatal: a schema error should not prevent the server from starting.
+await initSchema().catch(err => console.error('[db] Schema init failed (non-fatal):', err.message));
 
 app.listen(PORT, () => {
   console.log(`[server] clasp-it listening on port ${PORT}`);
