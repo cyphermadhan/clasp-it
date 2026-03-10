@@ -28,20 +28,19 @@ if (chrome.webRequest) {
   );
 }
 
-// ── Extension icon click → start picking ─────────────────────────────────────
-chrome.action.onClicked.addListener(async (tab) => {
-  if (!tab.id) return;
+// ── Open side panel on icon click ─────────────────────────────────────────────
+// setPanelBehavior tells Chrome to open the side panel automatically when the
+// action icon is clicked, without needing chrome.sidePanel.open().
+if (chrome.sidePanel) {
+  chrome.sidePanel
+    .setPanelBehavior({ openPanelOnActionClick: true })
+    .catch((err) => console.warn("[ClaspIt] sidePanel.setPanelBehavior:", err));
+}
 
-  // Clear buffers for the new session
+// Clear buffers whenever the icon is clicked (fires before panel opens).
+chrome.action.onClicked.addListener(() => {
   consoleLogBuffer = [];
   networkRequestBuffer = [];
-
-  try {
-    await chrome.tabs.sendMessage(tab.id, { type: "START_PICKING" });
-  } catch (err) {
-    // Content script may not be ready (e.g. chrome:// pages). Log quietly.
-    console.warn("[ClaspIt] Could not send START_PICKING:", err.message);
-  }
 });
 
 // ── Message handler ───────────────────────────────────────────────────────────
@@ -75,12 +74,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     // ── Screenshot capture
     case "CAPTURE_SCREENSHOT": {
-      const windowId = sender.tab?.windowId;
-      chrome.tabs
-        .captureVisibleTab(windowId, { format: "png" })
-        .then((dataUrl) => sendResponse({ dataUrl }))
-        .catch((err) => sendResponse({ error: err.message }));
-      // Return true to signal async response
+      (async () => {
+        try {
+          let windowId = sender.tab?.windowId;
+          if (!windowId) {
+            const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            windowId = activeTab?.windowId;
+          }
+          const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: "png" });
+          sendResponse({ dataUrl });
+        } catch (err) {
+          sendResponse({ error: err.message });
+        }
+      })();
       return true;
     }
 

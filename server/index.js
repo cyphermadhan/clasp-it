@@ -43,6 +43,7 @@ app.get('/health', (_req, res) => {
 app.use('/auth', authRouter);
 app.use('/billing', authRouter);
 app.use('/element-context', elementRouter);
+app.use('/picks', elementRouter);
 app.use('/mcp', mcpRouter);
 
 // ─── 404 catch-all ────────────────────────────────────────────────────────────

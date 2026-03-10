@@ -40,6 +40,8 @@ export async function initSchema() {
       used        BOOLEAN NOT NULL DEFAULT false
     );
 
+    ALTER TABLE magic_links ADD COLUMN IF NOT EXISTS device_id TEXT;
+
     CREATE TABLE IF NOT EXISTS api_keys (
       id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -63,6 +65,8 @@ export async function initSchema() {
       had_react       BOOLEAN DEFAULT false,
       created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+
+    ALTER TABLE picks ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'not_started';
   `);
 
   console.log('[db] Schema initialised');

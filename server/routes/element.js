@@ -8,7 +8,7 @@
  */
 
 import { Router } from 'express';
-import { storePick } from '../lib/storage.js';
+import { storePick, getPickStatuses } from '../lib/storage.js';
 import { checkAndIncrementRateLimit } from '../lib/storage.js';
 import { requireApiKey, gatePayload, PLANS } from '../lib/auth.js';
 import { pool } from '../lib/db.js';
@@ -42,7 +42,7 @@ router.post('/', requireApiKey, async (req, res) => {
     const id = `pick_${Date.now()}`;
     const timestamp = new Date().toISOString();
 
-    const pick = { ...payload, id, timestamp };
+    const pick = { ...payload, id, timestamp, status: 'not_started' };
 
     // ── Store in Redis (primary retrieval store) ───────────────────────────────
     await storePick(userId, pick);
@@ -79,6 +79,24 @@ router.post('/', requireApiKey, async (req, res) => {
   } catch (err) {
     console.error('[element-context] Error storing pick:', err);
     return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// ─── GET /picks/statuses ──────────────────────────────────────────────────────
+// Returns { pickId: status } for a list of IDs. Used by the extension sidebar
+// to poll status for history items.
+
+router.get('/statuses', requireApiKey, async (req, res) => {
+  const raw = req.query.ids ?? '';
+  const ids = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  if (ids.length === 0) return res.json({});
+
+  try {
+    const statuses = await getPickStatuses(req.userId, ids);
+    return res.json(statuses);
+  } catch (err) {
+    console.error('[picks] statuses error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 

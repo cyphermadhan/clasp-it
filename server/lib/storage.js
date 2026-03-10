@@ -143,6 +143,118 @@ export async function clearPicks(userId) {
   }
 }
 
+// ─── Pick status ──────────────────────────────────────────────────────────────
+
+/**
+ * Update the `status` field of a specific pick in the user's list.
+ * @param {string} userId
+ * @param {string} pickId
+ * @param {string} status  'not_started' | 'in_progress' | 'completed'
+ * @returns {Promise<boolean>} true if found and updated
+ */
+export async function updatePickStatus(userId, pickId, status) {
+  const key = memKey(userId);
+
+  if (redis) {
+    const raws = await redis.lrange(key, 0, -1);
+    for (let i = 0; i < raws.length; i++) {
+      const pick = deserialize(raws[i]);
+      if (pick?.id === pickId) {
+        pick.status = status;
+        await redis.lset(key, i, serialize(pick));
+        return true;
+      }
+    }
+  } else {
+    const list = memStore.get(key) ?? [];
+    for (let i = 0; i < list.length; i++) {
+      const pick = deserialize(list[i]);
+      if (pick?.id === pickId) {
+        pick.status = status;
+        list[i] = serialize(pick);
+        memStore.set(key, list);
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Return a map of pickId → status for the given ids.
+ * @param {string} userId
+ * @param {string[]} ids
+ * @returns {Promise<Record<string, string>>}
+ */
+export async function getPickStatuses(userId, ids) {
+  const picks = await listRecentPicks(userId, 20);
+  const result = {};
+  for (const pick of picks) {
+    if (ids.includes(pick.id)) {
+      result[pick.id] = pick.status ?? 'not_started';
+    }
+  }
+  return result;
+}
+
+// ─── Device verification store (for magic link polling) ───────────────────────
+
+/** In-memory fallback for device verifications. */
+const deviceVerifyStore = new Map();
+const DEVICE_VERIFY_TTL = 15 * 60; // 15 minutes in seconds
+
+/**
+ * Store a verified API key keyed by deviceId (used once, then cleared).
+ */
+export async function storeDeviceVerification(deviceId, payload) {
+  const value = serialize(payload);
+  if (redis) {
+    await redis.set(`device:${deviceId}`, value, 'EX', DEVICE_VERIFY_TTL);
+  } else {
+    deviceVerifyStore.set(deviceId, { value, expires: Date.now() + DEVICE_VERIFY_TTL * 1000 });
+  }
+}
+
+/**
+ * Retrieve and immediately delete a device verification (one-time claim).
+ * @returns {Promise<object|null>}
+ */
+export async function claimDeviceVerification(deviceId) {
+  const redisKey = `device:${deviceId}`;
+  if (redis) {
+    const value = await redis.get(redisKey);
+    if (!value) return null;
+    await redis.del(redisKey);
+    return deserialize(value);
+  } else {
+    const entry = deviceVerifyStore.get(deviceId);
+    if (!entry) return null;
+    if (Date.now() > entry.expires) {
+      deviceVerifyStore.delete(deviceId);
+      return null;
+    }
+    deviceVerifyStore.delete(deviceId);
+    return deserialize(entry.value);
+  }
+}
+
+/**
+ * Check if a device verification exists (without consuming it).
+ * @returns {Promise<boolean>}
+ */
+export async function hasDeviceVerification(deviceId) {
+  if (redis) {
+    return (await redis.exists(`device:${deviceId}`)) === 1;
+  }
+  const entry = deviceVerifyStore.get(deviceId);
+  if (!entry) return false;
+  if (Date.now() > entry.expires) {
+    deviceVerifyStore.delete(deviceId);
+    return false;
+  }
+  return true;
+}
+
 // ─── Rate limiting ────────────────────────────────────────────────────────────
 
 /** In-memory rate limit store for dev (no Redis). */

@@ -3,10 +3,17 @@
 
 const SERVER_URL = "https://clasp-it-production.up.railway.app";
 
+// Guard against double-injection (programmatic re-injection after extension reload)
+if (window.__claspItLoaded) {
+  throw new Error("[ClaspIt] content script already loaded — skipping re-init");
+}
+window.__claspItLoaded = true;
+
 // ── State ─────────────────────────────────────────────────────────────────────
 let pickerActive = false;
 let highlightOverlay = null;
 let tooltip = null;
+let floatingDialog = null;
 let currentTarget = null;
 
 // ── Console interception (forwards to background for buffering) ───────────────
@@ -193,9 +200,83 @@ function hideHighlight() {
   if (tooltip) tooltip.style.display = "none";
 }
 
+// ── Floating prompt dialog ─────────────────────────────────────────────────────
+
+function createFloatingDialog() {
+  const div = document.createElement("div");
+  div.id = "clasp-float-dialog";
+  div.innerHTML = `
+    <input id="clasp-float-input" type="text" placeholder="What to change?" autocomplete="off" spellcheck="false"/>
+    <button id="clasp-float-submit">Clasp →</button>
+  `;
+  // Stop clicks/mousedown on the dialog from triggering the element picker
+  div.addEventListener("click", (e) => e.stopPropagation(), true);
+  div.addEventListener("mousedown", (e) => e.stopPropagation(), true);
+  document.body.appendChild(div);
+
+  document.getElementById("clasp-float-submit").addEventListener("click", (e) => {
+    e.stopPropagation();
+    submitFloatingDialog();
+  });
+
+  document.getElementById("clasp-float-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      e.stopPropagation();
+      submitFloatingDialog();
+    }
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      deactivatePicker();
+      chrome.runtime.sendMessage({ type: "PICKER_CANCELLED" }).catch(() => {});
+    }
+  });
+
+  return div;
+}
+
+function positionFloatingDialog(el) {
+  if (!floatingDialog) return;
+  const rect = el.getBoundingClientRect();
+  const dlgWidth = 260;
+  const margin = 10;
+
+  let left = rect.right + margin;
+  if (left + dlgWidth > window.innerWidth - margin) {
+    left = rect.left - dlgWidth - margin;
+  }
+  if (left < margin) left = margin;
+
+  let top = rect.top;
+  if (top + 46 > window.innerHeight - margin) {
+    top = window.innerHeight - 46 - margin;
+  }
+
+  floatingDialog.style.left = `${left}px`;
+  floatingDialog.style.top = `${top}px`;
+  floatingDialog.style.display = "flex";
+}
+
+function hideFloatingDialog() {
+  if (floatingDialog) floatingDialog.style.display = "none";
+}
+
+function submitFloatingDialog() {
+  const input = document.getElementById("clasp-float-input");
+  const prompt = input ? input.value.trim() : "";
+  const el = currentTarget;
+  if (!el) return;
+  hideFloatingDialog();
+  const data = collectElementData(el);
+  chrome.runtime.sendMessage({ type: "ELEMENT_PICKED", elementData: data, prompt, quickSend: true }).catch(() => {});
+  // Immediately reactivate so user can pick the next element
+  activatePicker();
+}
+
 // ── Picker event handlers ─────────────────────────────────────────────────────
 
 function onMouseOver(e) {
+  if (e.target.closest("#clasp-float-dialog")) return;
   currentTarget = e.target;
   moveHighlight(currentTarget);
 }
@@ -206,9 +287,27 @@ function onPickerClick(e) {
   e.stopPropagation();
 
   const el = currentTarget || e.target;
-  deactivatePicker();
-  const data = collectElementData(el);
-  injectPanel(data);
+
+  // Stop picking but keep dialog visible so user can type a prompt
+  pickerActive = false;
+  document.body.style.cursor = "";
+  hideHighlight();
+  document.removeEventListener("mouseover", onMouseOver, true);
+  document.removeEventListener("click", onPickerClick, true);
+
+  // Show prompt dialog next to the picked element
+  if (!floatingDialog) floatingDialog = createFloatingDialog();
+  const input = document.getElementById("clasp-float-input");
+  if (input) { input.value = ""; }
+  positionFloatingDialog(el);
+  if (input) input.focus();
+}
+
+function onPickerEscape(e) {
+  if (e.key === "Escape") {
+    deactivatePicker();
+    chrome.runtime.sendMessage({ type: "PICKER_CANCELLED" }).catch(() => {});
+  }
 }
 
 function activatePicker() {
@@ -218,317 +317,22 @@ function activatePicker() {
 
   if (!highlightOverlay) highlightOverlay = createHighlightOverlay();
   if (!tooltip) tooltip = createTooltip();
+  if (!floatingDialog) floatingDialog = createFloatingDialog();
+  hideFloatingDialog();
 
   document.addEventListener("mouseover", onMouseOver, true);
   document.addEventListener("click", onPickerClick, true);
+  document.addEventListener("keydown", onPickerEscape, true);
 }
 
 function deactivatePicker() {
   pickerActive = false;
   document.body.style.cursor = "";
   hideHighlight();
+  hideFloatingDialog();
   document.removeEventListener("mouseover", onMouseOver, true);
   document.removeEventListener("click", onPickerClick, true);
-}
-
-// ── Panel ─────────────────────────────────────────────────────────────────────
-
-const PANEL_TEMPLATE = (elementData) => {
-  const label =
-    elementData.tagName +
-    (elementData.classList[0] ? `.${elementData.classList[0]}` : "");
-  const showReact = elementData.hasReact;
-
-  return `
-<div id="bp-panel">
-  <div id="bp-header">
-    <span id="bp-element-label">${escapeHTML(label)}</span>
-    <button id="bp-close" title="Close">✕</button>
-  </div>
-  <div id="bp-url" title="${escapeHTML(elementData.pageURL)}">${escapeHTML(
-    truncate(elementData.pageURL, 60)
-  )}</div>
-  <hr/>
-  <div id="bp-toggles">
-    <label><input type="checkbox" id="bp-toggle-dom" checked disabled> DOM &amp; Selector <em>(always on)</em></label>
-    <label><input type="checkbox" id="bp-toggle-styles" checked disabled> Computed Styles <em>(always on)</em></label>
-    <label><input type="checkbox" id="bp-toggle-screenshot"> Screenshot</label>
-    <label><input type="checkbox" id="bp-toggle-console"> Console Logs</label>
-    <label><input type="checkbox" id="bp-toggle-network"> Network Requests</label>
-    <label id="bp-react-label" style="${showReact ? "" : "display:none"}"><input type="checkbox" id="bp-toggle-react"> React Props</label>
-    <label><input type="checkbox" id="bp-toggle-parent"> Parent DOM Context</label>
-  </div>
-  <div id="bp-presets">
-    <button data-preset="style">Style fix</button>
-    <button data-preset="debug">Debug</button>
-    <button data-preset="redesign">Redesign</button>
-    <button data-preset="full">Full</button>
-  </div>
-  <textarea id="bp-prompt" placeholder="Describe what to change..."></textarea>
-  <div id="bp-api-key-section" style="display:none">
-    <p>🔑 Connect your account</p>
-    <input type="text" id="bp-api-key-input" placeholder="Paste API key..."/>
-    <button id="bp-api-key-save">Save</button>
-    <a href="${SERVER_URL}" target="_blank">Get a free key →</a>
-  </div>
-  <div id="bp-actions">
-    <button id="bp-pick-another">Pick another</button>
-    <button id="bp-send">Send to Claude Code →</button>
-  </div>
-  <div id="bp-status"></div>
-</div>
-`;
-};
-
-function escapeHTML(str) {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function truncate(str, n) {
-  return str.length > n ? str.slice(0, n) + "…" : str;
-}
-
-/** Preset definitions: which toggle IDs to check. */
-const PRESETS = {
-  style: ["bp-toggle-dom", "bp-toggle-styles"],
-  debug: ["bp-toggle-dom", "bp-toggle-styles", "bp-toggle-console", "bp-toggle-network"],
-  redesign: ["bp-toggle-dom", "bp-toggle-styles", "bp-toggle-screenshot", "bp-toggle-react"],
-  full: [
-    "bp-toggle-dom",
-    "bp-toggle-styles",
-    "bp-toggle-screenshot",
-    "bp-toggle-console",
-    "bp-toggle-network",
-    "bp-toggle-react",
-    "bp-toggle-parent",
-  ],
-};
-
-const TOGGLE_IDS = [
-  "bp-toggle-screenshot",
-  "bp-toggle-console",
-  "bp-toggle-network",
-  "bp-toggle-react",
-  "bp-toggle-parent",
-];
-
-async function loadToggleState(toggleIds) {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(toggleIds, (result) => resolve(result));
-  });
-}
-
-async function saveToggleState(toggleId, value) {
-  chrome.storage.local.set({ [toggleId]: value });
-}
-
-async function injectPanel(elementData) {
-  // Remove any existing panel
-  removePanel();
-
-  const wrapper = document.createElement("div");
-  wrapper.id = "bp-panel-wrapper";
-  wrapper.innerHTML = PANEL_TEMPLATE(elementData);
-  document.body.appendChild(wrapper);
-
-  const panel = document.getElementById("bp-panel");
-  if (!panel) return;
-
-  // ── Restore persisted toggle state
-  const savedState = await loadToggleState(TOGGLE_IDS);
-  TOGGLE_IDS.forEach((id) => {
-    const checkbox = document.getElementById(id);
-    if (checkbox && !checkbox.disabled && id in savedState) {
-      checkbox.checked = !!savedState[id];
-    }
-  });
-
-  // ── Check for API key
-  const apiKeySection = document.getElementById("bp-api-key-section");
-  const sendBtn = document.getElementById("bp-send");
-
-  chrome.storage.local.get(["bp_api_key"], ({ bp_api_key }) => {
-    if (!bp_api_key) {
-      if (apiKeySection) apiKeySection.style.display = "block";
-      if (sendBtn) sendBtn.style.display = "none";
-    }
-  });
-
-  // ── Save API key
-  const apiKeySaveBtn = document.getElementById("bp-api-key-save");
-  if (apiKeySaveBtn) {
-    apiKeySaveBtn.addEventListener("click", () => {
-      const input = document.getElementById("bp-api-key-input");
-      const key = input ? input.value.trim() : "";
-      if (!key) return;
-      chrome.storage.local.set({ bp_api_key: key }, () => {
-        if (apiKeySection) apiKeySection.style.display = "none";
-        if (sendBtn) sendBtn.style.display = "inline-block";
-        setStatus("API key saved.", "success");
-      });
-    });
-  }
-
-  // ── Persist toggle changes
-  TOGGLE_IDS.forEach((id) => {
-    const checkbox = document.getElementById(id);
-    if (checkbox) {
-      checkbox.addEventListener("change", () => saveToggleState(id, checkbox.checked));
-    }
-  });
-
-  // ── Presets
-  document.querySelectorAll("#bp-presets [data-preset]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const presetIds = PRESETS[btn.dataset.preset] || [];
-      TOGGLE_IDS.forEach((id) => {
-        const cb = document.getElementById(id);
-        if (cb && !cb.disabled) {
-          cb.checked = presetIds.includes(id);
-          saveToggleState(id, cb.checked);
-        }
-      });
-    });
-  });
-
-  // ── Close button
-  const closeBtn = document.getElementById("bp-close");
-  if (closeBtn) closeBtn.addEventListener("click", removePanel);
-
-  // ── Pick another
-  const pickAnotherBtn = document.getElementById("bp-pick-another");
-  if (pickAnotherBtn) {
-    pickAnotherBtn.addEventListener("click", () => {
-      removePanel();
-      activatePicker();
-    });
-  }
-
-  // ── Send
-  if (sendBtn) {
-    sendBtn.addEventListener("click", () => handleSend(elementData));
-  }
-}
-
-function removePanel() {
-  const w = document.getElementById("bp-panel-wrapper");
-  if (w) w.remove();
-}
-
-function setStatus(msg, type = "info") {
-  const el = document.getElementById("bp-status");
-  if (!el) return;
-  el.textContent = msg;
-  el.className = type; // "success" | "error" | "info"
-}
-
-async function handleSend(elementData) {
-  const sendBtn = document.getElementById("bp-send");
-  if (sendBtn) sendBtn.disabled = true;
-  setStatus("Collecting data…", "info");
-
-  // Enabled toggles
-  const toggleScreenshot = document.getElementById("bp-toggle-screenshot")?.checked;
-  const toggleConsole = document.getElementById("bp-toggle-console")?.checked;
-  const toggleNetwork = document.getElementById("bp-toggle-network")?.checked;
-  const toggleReact = document.getElementById("bp-toggle-react")?.checked;
-  const toggleParent = document.getElementById("bp-toggle-parent")?.checked;
-  const prompt = document.getElementById("bp-prompt")?.value || "";
-
-  // Build payload
-  const payload = {
-    prompt,
-    element: {
-      selector: elementData.selector,
-      tagName: elementData.tagName,
-      id: elementData.id,
-      classList: elementData.classList,
-      attributes: elementData.attributes,
-      innerText: elementData.innerText,
-      innerHTML: elementData.innerHTML,
-      computedStyles: elementData.computedStyles,
-      dimensions: elementData.dimensions,
-      pageURL: elementData.pageURL,
-      pageTitle: elementData.pageTitle,
-    },
-    toggles: {
-      dom: true,
-      styles: true,
-      screenshot: !!toggleScreenshot,
-      console: !!toggleConsole,
-      network: !!toggleNetwork,
-      react: !!toggleReact,
-      parent: !!toggleParent,
-    },
-  };
-
-  if (toggleParent && elementData.parentHTML) {
-    payload.element.parentHTML = elementData.parentHTML;
-  }
-
-  // Screenshot
-  if (toggleScreenshot) {
-    try {
-      const resp = await chrome.runtime.sendMessage({ type: "CAPTURE_SCREENSHOT" });
-      if (resp && resp.dataUrl) payload.screenshot = resp.dataUrl;
-    } catch (err) {
-      console.warn("[ClaspIt] Screenshot failed:", err);
-    }
-  }
-
-  // Console logs
-  if (toggleConsole) {
-    try {
-      const resp = await chrome.runtime.sendMessage({ type: "GET_CONSOLE_LOGS" });
-      if (resp && resp.logs) payload.consoleLogs = resp.logs;
-    } catch (err) {
-      console.warn("[ClaspIt] Console logs failed:", err);
-    }
-  }
-
-  // Network requests
-  if (toggleNetwork) {
-    try {
-      const resp = await chrome.runtime.sendMessage({ type: "GET_NETWORK_REQUESTS" });
-      if (resp && resp.requests) payload.networkRequests = resp.requests;
-    } catch (err) {
-      console.warn("[ClaspIt] Network requests failed:", err);
-    }
-  }
-
-  // API key
-  const { bp_api_key } = await new Promise((res) =>
-    chrome.storage.local.get(["bp_api_key"], res)
-  );
-
-  setStatus("Sending…", "info");
-
-  try {
-    const response = await fetch(`${SERVER_URL}/element-context`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(bp_api_key ? { "X-API-Key": bp_api_key } : {}),
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => response.statusText);
-      throw new Error(`Server error ${response.status}: ${text}`);
-    }
-
-    const result = await response.json().catch(() => ({}));
-    setStatus(result.message || "Sent to Claude Code!", "success");
-  } catch (err) {
-    setStatus(`Error: ${err.message}`, "error");
-  } finally {
-    if (sendBtn) sendBtn.disabled = false;
-  }
+  document.removeEventListener("keydown", onPickerEscape, true);
 }
 
 // ── Message listener ──────────────────────────────────────────────────────────
@@ -536,9 +340,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "START_PICKING") {
     activatePicker();
     sendResponse({ ok: true });
-  } else if (message.type === "INJECT_PANEL") {
-    // Allow background to inject panel with pre-collected data if needed
-    if (message.elementData) injectPanel(message.elementData);
+  } else if (message.type === "CANCEL_PICKING") {
+    deactivatePicker();
+    chrome.runtime.sendMessage({ type: "PICKER_CANCELLED" }).catch(() => {});
     sendResponse({ ok: true });
   }
   return false;

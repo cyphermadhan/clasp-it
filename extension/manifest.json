@@ -8,8 +8,10 @@
     "activeTab",
     "scripting",
     "storage",
+    "tabs",
     "webNavigation",
-    "webRequest"
+    "webRequest",
+    "sidePanel"
   ],
 
   "optional_permissions": [],
@@ -35,6 +37,10 @@
 
   "action": {
     "default_title": "Clasp It for Claude Code"
+  },
+
+  "side_panel": {
+    "default_path": "sidepanel.html"
   },
 
   "web_accessible_resources": [

@@ -14,7 +14,8 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { pool } from '../lib/db.js';
-import { requireSession, generateApiKey, hashKey, createSession, PLANS } from '../lib/auth.js';
+import { requireSession, requireApiKey, generateApiKey, hashKey, createSession, PLANS } from '../lib/auth.js';
+import { storeDeviceVerification, claimDeviceVerification, hasDeviceVerification } from '../lib/storage.js';
 
 const router = Router();
 
@@ -48,7 +49,7 @@ async function sendMagicLink(email, token) {
 // ─── POST /auth/signup ────────────────────────────────────────────────────────
 
 router.post('/signup', async (req, res) => {
-  const { email } = req.body ?? {};
+  const { email, deviceId } = req.body ?? {};
   if (!email || typeof email !== 'string' || !email.includes('@')) {
     return res.status(400).json({ error: 'Valid email is required' });
   }
@@ -68,12 +69,12 @@ router.post('/signup', async (req, res) => {
     );
     const userId = userResult.rows[0].id;
 
-    // Create magic link token (expires in 15 minutes)
+    // Create magic link token (expires in 15 minutes), optionally linked to a deviceId
     const token = uuidv4();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
     await pool.query(
-      'INSERT INTO magic_links (token, user_id, expires_at) VALUES ($1, $2, $3)',
-      [token, userId, expiresAt],
+      'INSERT INTO magic_links (token, user_id, expires_at, device_id) VALUES ($1, $2, $3, $4)',
+      [token, userId, expiresAt, deviceId ?? null],
     );
 
     await sendMagicLink(email, token);
@@ -116,14 +117,35 @@ router.get('/verify/:token', async (req, res) => {
     }
 
     // Mark as used
-    await pool.query('UPDATE magic_links SET used = true WHERE token = $1', [token]);
+    const updateResult = await pool.query(
+      'UPDATE magic_links SET used = true WHERE token = $1 RETURNING device_id, user_id',
+      [token],
+    );
+    const { device_id: deviceId } = updateResult.rows[0] ?? {};
 
     const sessionToken = await createSession(userId);
 
-    // Redirect to dashboard if APP_URL is set, otherwise return JSON
+    // Auto-create an API key and store it for device polling (if deviceId present)
+    if (deviceId) {
+      try {
+        const { raw, hash, prefix } = generateApiKey();
+        await pool.query(
+          `INSERT INTO api_keys (user_id, key_hash, key_prefix, label)
+           VALUES ($1, $2, $3, $4)`,
+          [userId, hash, prefix, 'Extension'],
+        );
+        const planResult = await pool.query('SELECT plan, email FROM users WHERE id = $1', [userId]);
+        const { plan, email } = planResult.rows[0] ?? { plan: 'free' };
+        await storeDeviceVerification(deviceId, { apiKey: raw, plan, email });
+      } catch (err) {
+        console.error('[auth] Failed to auto-create key for device poll:', err.message);
+      }
+    }
+
+    // Redirect to confirmation page (or return JSON in dev mode)
     const appUrl = process.env.APP_URL;
     if (appUrl) {
-      return res.redirect(`${appUrl}/dashboard?session=${sessionToken}`);
+      return res.redirect(`${appUrl}/verified`);
     }
     return res.json({ success: true, sessionToken });
   } catch (err) {
@@ -218,6 +240,63 @@ router.delete('/keys/:id', requireSession, async (req, res) => {
     return res.json({ success: true });
   } catch (err) {
     console.error('[auth] delete key error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /auth/poll/:deviceId ─────────────────────────────────────────────────
+// Extension polls this after sending a magic link. Returns the API key once
+// the user clicks the email link. The key is consumed on first successful poll.
+
+router.get('/poll/:deviceId', async (req, res) => {
+  const { deviceId } = req.params;
+  if (!deviceId) return res.status(400).json({ error: 'deviceId required' });
+
+  try {
+    const verified = await claimDeviceVerification(deviceId);
+    if (verified) {
+      return res.json({ status: 'verified', apiKey: verified.apiKey, plan: verified.plan, email: verified.email });
+    }
+
+    // Check if there's a pending (not-yet-clicked) magic link for this device
+    if (pool) {
+      const result = await pool.query(
+        `SELECT expires_at FROM magic_links
+         WHERE device_id = $1 AND used = false
+         ORDER BY expires_at DESC LIMIT 1`,
+        [deviceId],
+      );
+      if (result.rows.length > 0 && new Date() < new Date(result.rows[0].expires_at)) {
+        return res.json({ status: 'pending' });
+      }
+    } else {
+      return res.json({ status: 'pending' });
+    }
+
+    return res.json({ status: 'expired' });
+  } catch (err) {
+    console.error('[auth] poll error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /auth/info ───────────────────────────────────────────────────────────
+// Returns email + plan for a valid API key. Used by the extension sidebar.
+
+router.get('/info', requireApiKey, async (req, res) => {
+  if (!pool) {
+    return res.json({ email: null, plan: 'pro' });
+  }
+  try {
+    const result = await pool.query(
+      'SELECT email, plan FROM users WHERE id = $1',
+      [req.userId],
+    );
+    const user = result.rows[0];
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    return res.json({ email: user.email, plan: user.plan });
+  } catch (err) {
+    console.error('[auth] /info error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -24,6 +24,7 @@ import {
   getPickById,
   listRecentPicks,
   clearPicks,
+  updatePickStatus,
 } from '../lib/storage.js';
 import { requireApiKey } from '../lib/auth.js';
 
@@ -81,6 +82,24 @@ const TOOLS = [
       required: [],
     },
   },
+  {
+    name: 'update_pick_status',
+    description:
+      'Update the status of a pick. Call with status="in_progress" when you start working on it, ' +
+      'and status="completed" when you\'re done. The extension sidebar shows these statuses to the user.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'The pick ID.' },
+        status: {
+          type: 'string',
+          enum: ['not_started', 'in_progress', 'completed'],
+          description: 'New status for the pick.',
+        },
+      },
+      required: ['id', 'status'],
+    },
+  },
 ];
 
 // ─── Factory: create a wired-up MCP Server + Transport per request ────────────
@@ -106,6 +125,10 @@ function createMcpServer(userId) {
       switch (name) {
         case 'get_element_context': {
           const pick = await getLatestPick(userId);
+          if (pick) {
+            // Auto-mark as in_progress when Claude reads it
+            updatePickStatus(userId, pick.id, 'in_progress').catch(() => {});
+          }
           return {
             content: [
               {
@@ -127,6 +150,9 @@ function createMcpServer(userId) {
             };
           }
           const pick = await getPickById(userId, id);
+          if (pick) {
+            updatePickStatus(userId, pick.id, 'in_progress').catch(() => {});
+          }
           return {
             content: [
               {
@@ -159,6 +185,32 @@ function createMcpServer(userId) {
           await clearPicks(userId);
           return {
             content: [{ type: 'text', text: 'All picks cleared successfully.' }],
+          };
+        }
+
+        case 'update_pick_status': {
+          const { id, status } = args;
+          if (!id || !status) {
+            return {
+              content: [{ type: 'text', text: 'Error: id and status are required.' }],
+              isError: true,
+            };
+          }
+          const validStatuses = ['not_started', 'in_progress', 'completed'];
+          if (!validStatuses.includes(status)) {
+            return {
+              content: [{ type: 'text', text: `Error: status must be one of ${validStatuses.join(', ')}.` }],
+              isError: true,
+            };
+          }
+          const updated = await updatePickStatus(userId, id, status);
+          return {
+            content: [{
+              type: 'text',
+              text: updated
+                ? `Pick ${id} status updated to "${status}".`
+                : `Pick ${id} not found.`,
+            }],
           };
         }
 
