@@ -138,8 +138,33 @@ To update the key later: `claude mcp remove clasp` then re-add.
 
 ## What's next
 1. Chrome Web Store submission
-2. Test full auth flow end to end (sign up → magic link → API key → MCP)
-3. `www.claspit.dev` redirect (optional)
+2. `www.claspit.dev` redirect (optional)
+
+## Future refinements (planned, not built)
+
+### Projects (Pro plan only)
+Let Pro users organise picks into named projects so Claude knows which picks belong to which codebase.
+
+**Problem:** With multiple VS Code windows open in parallel, `list_recent_picks` mixes picks from all projects. URL filtering doesn't work if both projects reference the same third-party sites.
+
+**Planned design:**
+- Pro users create named projects in extension settings; free plan gets one default project
+- Project selector in main panel — user sets active project before picking
+- Each pick tagged with `projectId` + `projectName`
+- `list_recent_picks` MCP tool accepts optional `project` filter param
+- Claude usage: *"fix all clasp picks from the 'dashboard' project"*
+
+**Server changes needed:**
+- `projects` table: `id, user_id, name, created_at`
+- `POST /element-context` accepts optional `projectId`
+- `list_recent_picks` and `/picks/statuses` accept optional `project` filter
+
+**Extension changes needed:**
+- Project management UI in settings (Pro gate)
+- Active project selector on main screen
+- Project name on history cards
+
+See PLAN.md for full spec.
 
 ## Coding conventions
 - ES modules (`"type": "module"` in package.json)

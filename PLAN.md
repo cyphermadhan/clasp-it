@@ -437,6 +437,32 @@ claude mcp add --scope user --transport http clasp-it \
 
 ---
 
+## Future Refinements
+
+### Projects (Pro plan only)
+Allow Pro users to organise picks into named projects so Claude knows which picks belong to which codebase.
+
+**Problem it solves:** When two projects are open in parallel, `list_recent_picks` returns picks from both — Claude can't tell which belongs where. URL filtering doesn't help if both projects reference the same third-party sites.
+
+**Design:**
+- Pro users can create named projects in extension settings (free plan gets a single default project)
+- A project selector appears in the side panel — user sets the active project before picking
+- Each pick is tagged with `projectId` + `projectName` when sent to the server
+- `list_recent_picks` MCP tool accepts an optional `project` param to filter
+- Claude usage: *"fix all clasp picks from the 'dashboard' project"*
+
+**Server changes:**
+- `POST /element-context` accepts optional `projectId`
+- `GET /picks/statuses` and `list_recent_picks` accept optional `project` filter
+- Projects table in Postgres: `id, user_id, name, created_at`
+
+**Extension changes:**
+- Project management UI in settings (Pro only)
+- Active project selector in main screen
+- Project name shown on history cards
+
+---
+
 ## Part 7 — Build Order
 
 ### Phase 1 — Core (validate the idea)
