@@ -56,6 +56,7 @@ function showScreen(name) {
     const btn = document.getElementById("sp-signup-btn");
     if (btn) { btn.disabled = false; btn.textContent = "Get free API key"; }
   }
+  if (withHeader.includes(name)) renderHeader();
   if (name === "main") renderHistory();
   if (name === "settings") renderSettings();
 }
@@ -210,6 +211,7 @@ async function fetchAuthInfo() {
     app.plan  = data.plan  || app.plan;
     await storageSet({ clasp_email: app.email, clasp_plan: app.plan });
     applyPlanGating();
+    renderHeader();
   } catch {}
 }
 
@@ -646,6 +648,18 @@ async function pollStatuses() {
       if (app.screen === "main") renderHistory();
     }
   } catch {}
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+
+function renderHeader() {
+  const emailEl = document.getElementById("sp-header-email");
+  const planEl  = document.getElementById("sp-header-plan");
+  if (emailEl) emailEl.textContent = app.email || "";
+  if (planEl) {
+    planEl.textContent = app.plan === "pro" ? "Pro" : "Free";
+    planEl.className = `sp-plan-badge ${app.plan === "pro" ? "pro" : "free"}`;
+  }
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────
