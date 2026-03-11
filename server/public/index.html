@@ -568,10 +568,11 @@
       box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
     }
 
-    .demo-modal video {
+    .demo-modal iframe {
       display: block;
       width: 100%;
       aspect-ratio: 16 / 9;
+      border: none;
     }
 
     .demo-close {
@@ -615,9 +616,7 @@
       <button class="demo-close" onclick="closeDemo()" aria-label="Close">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       </button>
-      <video id="demo-video" controls playsinline>
-        <source src="" type="video/mp4" id="demo-source" />
-      </video>
+      <iframe src="https://www.loom.com/embed/c57056eebd6c440696274bccc6730ffd" allowfullscreen></iframe>
     </div>
   </div>
 
@@ -791,28 +790,14 @@
       document.querySelector(".pricing")?.scrollIntoView({ behavior: "smooth" });
     }
 
-    const DEMO_VIDEO_URL = ""; // TODO: replace with real video URL
-
     function openDemo() {
-      const overlay = document.getElementById("demo-overlay");
-      const video = document.getElementById("demo-video");
-      const source = document.getElementById("demo-source");
-      if (DEMO_VIDEO_URL && source.src !== DEMO_VIDEO_URL) {
-        source.src = DEMO_VIDEO_URL;
-        video.load();
-      }
-      overlay.classList.add("open");
+      document.getElementById("demo-overlay").classList.add("open");
       document.body.style.overflow = "hidden";
-      if (DEMO_VIDEO_URL) video.play();
     }
 
     function closeDemo() {
-      const overlay = document.getElementById("demo-overlay");
-      const video = document.getElementById("demo-video");
-      overlay.classList.remove("open");
+      document.getElementById("demo-overlay").classList.remove("open");
       document.body.style.overflow = "";
-      video.pause();
-      video.currentTime = 0;
     }
 
     function handleOverlayClick(e) {
