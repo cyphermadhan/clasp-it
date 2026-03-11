@@ -327,7 +327,7 @@ ratelimit:<userId>:<date> → pick count today
 
 | | Free | Pro | Team |
 |---|---|---|---|
-| **Price** | $0 | $9/month or $79/year | $29/month |
+| **Price** | $0 | $19 one-time | — |
 | **Picks/day** | 20 | Unlimited | Unlimited |
 | **DOM + Styles** | ✅ | ✅ | ✅ |
 | **Screenshot** | ❌ | ✅ | ✅ |
