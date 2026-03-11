@@ -123,12 +123,8 @@
     }
     .sp-auth-brand-mark {
       width: 36px; height: 36px;
-      background: var(--bg-inverse);
-      border-radius: var(--radius-md);
-      display: flex; align-items: center; justify-content: center;
       margin: 0 auto 12px;
     }
-    .sp-auth-brand-mark svg { width: 20px; height: 20px; fill: var(--text-inverse); }
     .sp-auth-brand h2 {
       font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 5px;
     }
@@ -572,7 +568,21 @@
 <div id="screen-auth" class="sp-screen">
   <div class="sp-auth-brand">
     <div class="sp-auth-brand-mark">
-      <svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 1a2 2 0 0 1 2 2v1h1a1 1 0 0 1 .894 1.447L10 9v3.5a.5.5 0 0 1-.854.354L8 11.707l-1.146 1.147A.5.5 0 0 1 6 12.5V9L4.106 5.447A1 1 0 0 1 5 4h1V3a2 2 0 0 1 2-2z"/></svg>
+      <svg width="36" height="36" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="32" height="32" rx="8" fill="#D97757"/>
+        <g clip-path="url(#clip0_22_203)">
+          <path d="M16 19C17.6569 19 19 17.6569 19 16C19 14.3431 17.6569 13 16 13C14.3431 13 13 14.3431 13 16C13 17.6569 14.3431 19 16 19Z" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M16 6V9" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M16 23V26" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M6 16H9" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M23 16H26" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
+        <defs>
+          <clipPath id="clip0_22_203">
+            <rect width="24" height="24" fill="white" transform="translate(4 4)"/>
+          </clipPath>
+        </defs>
+      </svg>
     </div>
     <h2>Clasp-it</h2>
     <p>Click any element. Send its context to Claude Code.</p>
