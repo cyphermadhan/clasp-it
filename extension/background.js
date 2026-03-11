@@ -29,24 +29,28 @@ if (chrome.webRequest) {
 }
 
 // ── Open side panel on icon click ─────────────────────────────────────────────
-// Try chrome.sidePanel.open() explicitly (Chrome 116+).
-// Fall back to a popup window for Arc and other browsers that don't support it.
+// In Chrome: setPanelBehavior intercepts the click and opens the side panel
+// WITHOUT firing onClicked — so the popup below never runs in Chrome.
+// In Arc/other browsers: setPanelBehavior is a no-op, onClicked fires normally,
+// and we open a popup window as fallback.
 
-chrome.action.onClicked.addListener(async (tab) => {
+if (chrome.sidePanel) {
+  chrome.sidePanel
+    .setPanelBehavior({ openPanelOnActionClick: true })
+    .catch(() => {});
+}
+
+chrome.action.onClicked.addListener((_tab) => {
   consoleLogBuffer = [];
   networkRequestBuffer = [];
 
-  try {
-    await chrome.sidePanel.open({ tabId: tab.id });
-  } catch {
-    // sidePanel not supported or failed (e.g. Arc) — open as popup
-    chrome.windows.create({
-      url: chrome.runtime.getURL("sidepanel.html"),
-      type: "popup",
-      width: 380,
-      height: 600,
-    });
-  }
+  // Only reaches here in browsers where sidePanel didn't intercept the click
+  chrome.windows.create({
+    url: chrome.runtime.getURL("sidepanel.html"),
+    type: "popup",
+    width: 400,
+    height: 640,
+  });
 });
 
 // ── Message handler ───────────────────────────────────────────────────────────
