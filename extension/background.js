@@ -29,16 +29,14 @@ if (chrome.webRequest) {
 }
 
 // ── Open side panel on icon click ─────────────────────────────────────────────
-// default_popup in manifest handles Arc (opens sidepanel.html as popup).
-// In Chrome, setPanelBehavior overrides the popup and opens the side panel.
 
 if (chrome.sidePanel) {
   chrome.sidePanel
     .setPanelBehavior({ openPanelOnActionClick: true })
-    .catch(() => {});
+    .catch((err) => console.warn("[ClaspIt] sidePanel.setPanelBehavior:", err));
 }
 
-// Clear buffers on icon click (fires in Arc via popup open; in Chrome via side panel)
+// Clear buffers whenever the icon is clicked (fires before panel opens).
 chrome.action.onClicked.addListener(() => {
   consoleLogBuffer = [];
   networkRequestBuffer = [];

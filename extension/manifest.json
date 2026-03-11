@@ -11,8 +11,7 @@
     "tabs",
     "webNavigation",
     "webRequest",
-    "sidePanel",
-    "windows"
+    "sidePanel"
   ],
 
   "optional_permissions": [],
@@ -45,7 +44,6 @@
 
   "action": {
     "default_title": "Clasp-it for Claude Code",
-    "default_popup": "sidepanel.html",
     "default_icon": {
       "16": "icon16.png",
       "32": "icon32.png",
