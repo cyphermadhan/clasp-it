@@ -52,6 +52,10 @@ function showScreen(name) {
   const el = document.getElementById(`screen-${name}`);
   if (el) el.classList.add("active");
 
+  if (name === "auth") {
+    const btn = document.getElementById("sp-signup-btn");
+    if (btn) { btn.disabled = false; btn.textContent = "Get free API key"; }
+  }
   if (name === "main") renderHistory();
   if (name === "settings") renderSettings();
 }
@@ -59,7 +63,7 @@ function showScreen(name) {
 // ── Init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
-  const stored = await storageGet(["bp_api_key", "clasp_email", "clasp_plan", "clasp_history"]);
+  const stored = await storageGet(["bp_api_key", "clasp_email", "clasp_plan", "clasp_history", "clasp_device_id"]);
   if (stored.bp_api_key) {
     app.apiKey  = stored.bp_api_key;
     app.email   = stored.clasp_email  || null;
@@ -71,6 +75,13 @@ async function init() {
     showScreen("main");
     startStatusPolling();
     fetchAuthInfo(); // refresh in background
+  } else if (stored.clasp_device_id) {
+    // Resume verifying state after panel reload
+    app.deviceId = stored.clasp_device_id;
+    app.email = stored.clasp_email || null;
+    if (app.email) document.getElementById("sp-verify-email").textContent = app.email;
+    showScreen("verifying");
+    startDevicePoll();
   } else {
     showScreen("auth");
   }
@@ -93,6 +104,7 @@ document.getElementById("sp-signup-btn").addEventListener("click", async () => {
   btn.textContent = "Sending…";
 
   app.deviceId = crypto.randomUUID();
+  await storageSet({ clasp_device_id: app.deviceId, clasp_email: email });
 
   try {
     const res = await fetch(`${SERVER_URL}/auth/signup`, {
@@ -160,6 +172,7 @@ async function pollDevice() {
       stopDevicePoll();
       app.apiKey = data.apiKey;
       app.plan   = data.plan || "free";
+      await storageRemove(["clasp_device_id"]);
       await storageSet({ bp_api_key: data.apiKey, clasp_email: app.email, clasp_plan: app.plan });
       applyPlanGating();
       initToggleListeners();
@@ -169,6 +182,7 @@ async function pollDevice() {
       fetchAuthInfo();
     } else if (data.status === "expired") {
       stopDevicePoll();
+      await storageRemove(["clasp_device_id"]);
       showScreen("auth");
     }
   } catch {
@@ -176,8 +190,9 @@ async function pollDevice() {
   }
 }
 
-document.getElementById("sp-verify-back-btn").addEventListener("click", () => {
+document.getElementById("sp-verify-back-btn").addEventListener("click", async () => {
   stopDevicePoll();
+  await storageRemove(["clasp_device_id"]);
   showScreen("auth");
 });
 
