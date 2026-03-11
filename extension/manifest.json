@@ -11,7 +11,8 @@
     "tabs",
     "webNavigation",
     "webRequest",
-    "sidePanel"
+    "sidePanel",
+    "windows"
   ],
 
   "optional_permissions": [],
@@ -62,7 +63,7 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["panel.html"],
+      "resources": ["panel.html", "sidepanel.html"],
       "matches": ["<all_urls>"]
     }
   ]

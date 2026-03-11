@@ -29,18 +29,28 @@ if (chrome.webRequest) {
 }
 
 // ── Open side panel on icon click ─────────────────────────────────────────────
-// setPanelBehavior tells Chrome to open the side panel automatically when the
-// action icon is clicked, without needing chrome.sidePanel.open().
+// Use sidePanel API if available (Chrome 114+). Fall back to a popup window
+// for Arc and other Chromium browsers that don't support sidePanel.
+
 if (chrome.sidePanel) {
   chrome.sidePanel
     .setPanelBehavior({ openPanelOnActionClick: true })
     .catch((err) => console.warn("[ClaspIt] sidePanel.setPanelBehavior:", err));
 }
 
-// Clear buffers whenever the icon is clicked (fires before panel opens).
-chrome.action.onClicked.addListener(() => {
+chrome.action.onClicked.addListener((tab) => {
   consoleLogBuffer = [];
   networkRequestBuffer = [];
+
+  // Fallback for browsers without sidePanel support (e.g. Arc)
+  if (!chrome.sidePanel) {
+    chrome.windows.create({
+      url: chrome.runtime.getURL("sidepanel.html"),
+      type: "popup",
+      width: 380,
+      height: 600,
+    });
+  }
 });
 
 // ── Message handler ───────────────────────────────────────────────────────────
