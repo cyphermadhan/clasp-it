@@ -31,7 +31,7 @@ app.use(
 );
 
 app.use(express.json({ limit: '1mb' }));
-app.use(express.static(join(__dirname, 'public')));
+app.use(express.static(join(__dirname, 'public'), { extensions: ['html'] }));
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 
