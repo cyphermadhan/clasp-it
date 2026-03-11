@@ -224,7 +224,7 @@ export async function claimDeviceVerification(deviceId) {
   if (redis) {
     const value = await redis.get(redisKey);
     if (!value) return null;
-    await redis.del(redisKey);
+    // Don't delete — let the TTL expire naturally so multiple polls all succeed
     return deserialize(value);
   } else {
     const entry = deviceVerifyStore.get(deviceId);
@@ -233,7 +233,7 @@ export async function claimDeviceVerification(deviceId) {
       deviceVerifyStore.delete(deviceId);
       return null;
     }
-    deviceVerifyStore.delete(deviceId);
+    // Don't delete — let TTL handle cleanup
     return deserialize(entry.value);
   }
 }

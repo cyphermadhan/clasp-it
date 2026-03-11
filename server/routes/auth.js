@@ -253,27 +253,50 @@ router.get('/poll/:deviceId', async (req, res) => {
   if (!deviceId) return res.status(400).json({ error: 'deviceId required' });
 
   try {
+    // 1. Check Redis (non-destructive — TTL handles cleanup)
     const verified = await claimDeviceVerification(deviceId);
     if (verified) {
       return res.json({ status: 'verified', apiKey: verified.apiKey, plan: verified.plan, email: verified.email });
     }
 
-    // Check if there's a pending (not-yet-clicked) magic link for this device
-    if (pool) {
-      const result = await pool.query(
-        `SELECT expires_at FROM magic_links
-         WHERE device_id = $1 AND used = false
-         ORDER BY expires_at DESC LIMIT 1`,
-        [deviceId],
-      );
-      if (result.rows.length > 0 && new Date() < new Date(result.rows[0].expires_at)) {
-        return res.json({ status: 'pending' });
+    if (!pool) return res.json({ status: 'pending' });
+
+    // 2. Look up the magic link for this device
+    const result = await pool.query(
+      `SELECT ml.expires_at, ml.used, ml.user_id, u.email, u.plan
+       FROM magic_links ml
+       JOIN users u ON u.id = ml.user_id
+       WHERE ml.device_id = $1
+       ORDER BY ml.expires_at DESC LIMIT 1`,
+      [deviceId],
+    );
+
+    if (result.rows.length === 0) return res.json({ status: 'expired' });
+
+    const { expires_at, used, user_id, email, plan } = result.rows[0];
+
+    // 3. Link was clicked but Redis entry is missing (Redis write failed in verify route)
+    //    Regenerate an API key and store it so subsequent polls succeed.
+    if (used) {
+      try {
+        const { raw, hash, prefix } = generateApiKey();
+        await pool.query(
+          `INSERT INTO api_keys (user_id, key_hash, key_prefix, label) VALUES ($1, $2, $3, $4)`,
+          [user_id, hash, prefix, 'Extension'],
+        );
+        // Cache in Redis so this branch only runs once
+        await storeDeviceVerification(deviceId, { apiKey: raw, plan, email });
+        return res.json({ status: 'verified', apiKey: raw, plan, email });
+      } catch (err) {
+        console.error('[auth] poll fallback key creation failed:', err.message);
+        return res.status(500).json({ error: 'Internal server error' });
       }
-    } else {
-      return res.json({ status: 'pending' });
     }
 
-    return res.json({ status: 'expired' });
+    // 4. Link not yet clicked
+    if (new Date() > new Date(expires_at)) return res.json({ status: 'expired' });
+    return res.json({ status: 'pending' });
+
   } catch (err) {
     console.error('[auth] poll error:', err);
     return res.status(500).json({ error: 'Internal server error' });
