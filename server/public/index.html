@@ -207,7 +207,7 @@
     .steps-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 2px;
+      gap: 12px;
     }
 
     .step {
@@ -217,9 +217,6 @@
       padding: 28px 24px;
       position: relative;
     }
-
-    .step:first-child { border-radius: 12px 4px 4px 12px; }
-    .step:last-child  { border-radius: 4px 12px 12px 4px; }
 
     .step-visual {
       width: 100%;
@@ -545,6 +542,58 @@
       gap: 24px;
     }
 
+    /* ── Demo Modal ── */
+    .demo-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .demo-overlay.open {
+      display: flex;
+    }
+
+    .demo-modal {
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      width: 100%;
+      max-width: 800px;
+      position: relative;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+    }
+
+    .demo-modal video {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+    }
+
+    .demo-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.6);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      z-index: 1;
+      transition: background 0.15s;
+    }
+
+    .demo-close:hover { background: rgba(0, 0, 0, 0.85); }
+
     /* ── Responsive ── */
     @media (max-width: 600px) {
       nav { padding: 16px 20px; }
@@ -559,6 +608,18 @@
   </style>
 </head>
 <body>
+
+  <!-- Demo Modal -->
+  <div class="demo-overlay" id="demo-overlay" onclick="handleOverlayClick(event)">
+    <div class="demo-modal">
+      <button class="demo-close" onclick="closeDemo()" aria-label="Close">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <video id="demo-video" controls playsinline>
+        <source src="" type="video/mp4" id="demo-source" />
+      </video>
+    </div>
+  </div>
 
   <!-- Nav -->
   <nav>
@@ -579,7 +640,10 @@
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v6M5 8h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         Add to Chrome — it's free
       </a>
-      <a href="#setup" class="btn btn-ghost">See setup →</a>
+      <button class="btn btn-ghost" onclick="openDemo()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 4.5L10 7L5.5 9.5V4.5Z" fill="currentColor"/></svg>
+        See demo
+      </button>
     </div>
   </section>
 
@@ -726,6 +790,38 @@
     if (window.location.hash === "#pricing") {
       document.querySelector(".pricing")?.scrollIntoView({ behavior: "smooth" });
     }
+
+    const DEMO_VIDEO_URL = ""; // TODO: replace with real video URL
+
+    function openDemo() {
+      const overlay = document.getElementById("demo-overlay");
+      const video = document.getElementById("demo-video");
+      const source = document.getElementById("demo-source");
+      if (DEMO_VIDEO_URL && source.src !== DEMO_VIDEO_URL) {
+        source.src = DEMO_VIDEO_URL;
+        video.load();
+      }
+      overlay.classList.add("open");
+      document.body.style.overflow = "hidden";
+      if (DEMO_VIDEO_URL) video.play();
+    }
+
+    function closeDemo() {
+      const overlay = document.getElementById("demo-overlay");
+      const video = document.getElementById("demo-video");
+      overlay.classList.remove("open");
+      document.body.style.overflow = "";
+      video.pause();
+      video.currentTime = 0;
+    }
+
+    function handleOverlayClick(e) {
+      if (e.target === document.getElementById("demo-overlay")) closeDemo();
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeDemo();
+    });
   </script>
 
 </body>

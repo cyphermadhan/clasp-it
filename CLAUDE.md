@@ -155,7 +155,7 @@ To update the key later: `claude mcp remove clasp` then re-add.
 1. ⏳ Chrome Web Store submission — submitted, awaiting review
 2. ~~`www.claspit.dev` redirect~~ — skipped (Railway charges per extra domain)
 3. Test full upgrade flow end-to-end (Dodo checkout → webhook → plan update → extension refresh)
-4. Verify `DODO_PRODUCT_PRO` env var is set on Railway (currently `DODO_PRODUCT_PRO_MONTHLY` + `DODO_PRODUCT_PRO_ANNUAL` — checkout route uses `DODO_PRODUCT_PRO`)
+4. ✅ `DODO_PRODUCT_PRO` env var confirmed set on Railway
 
 ## Future refinements (planned, not built)
 

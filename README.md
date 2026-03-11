@@ -75,7 +75,7 @@ clasp/
 | Network requests | — | ✅ |
 | React props | — | ✅ |
 | Pick history | 10 | 50 |
-| Price | Free | $8/mo or $72/yr |
+| Price | Free | $19 one-time |
 
 ---
 
