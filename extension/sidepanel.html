@@ -428,23 +428,20 @@
     /* ── Onboarding card ── */
     .sp-onboarding-card {
       margin: 10px 14px 4px;
-      padding: 12px 14px;
-      background: #fff8f5;
-      border: 1px solid rgba(198,97,63,0.2);
+      border: 0.5px solid var(--border-subtle);
       border-radius: var(--radius-md);
+      overflow: hidden;
     }
 
     .sp-onboarding-top {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 6px;
-    }
-
-    .sp-onboarding-title {
+      padding: 10px 12px;
       font-size: 12px;
-      font-weight: 600;
-      color: var(--text-primary);
+      font-weight: 500;
+      color: var(--text-secondary);
+      border-bottom: 0.5px solid var(--border-faint);
     }
 
     .sp-onboarding-dismiss {
@@ -458,30 +455,11 @@
     }
     .sp-onboarding-dismiss:hover { color: var(--text-primary); }
 
-    .sp-onboarding-hint {
-      font-size: 11px;
-      color: var(--text-secondary);
-      margin-bottom: 6px;
-    }
-
-    .sp-onboarding-cmd {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      background: var(--bg-secondary);
-      border: 0.5px solid var(--border-subtle);
-      border-radius: var(--radius-sm);
-      padding: 7px 10px;
-      color: var(--text-primary);
-      cursor: pointer;
-      word-break: break-all;
-      line-height: 1.5;
-    }
-    .sp-onboarding-cmd:hover { border-color: var(--border-medium); }
-
-    .sp-onboarding-step {
-      font-size: 11px;
-      color: var(--text-secondary);
-      margin-top: 8px;
+    .sp-onboarding-body {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px 12px 12px;
     }
 
     /* ── Claude tip ── */
@@ -611,12 +589,14 @@
     <!-- MCP onboarding card — shown after first login, dismissed once setup -->
     <div id="sp-onboarding-card" class="sp-onboarding-card" style="display:none">
       <div class="sp-onboarding-top">
-        <span class="sp-onboarding-title">Connect Claude Code</span>
+        <span>Connect Claude Code</span>
         <button id="sp-onboarding-dismiss" class="sp-onboarding-dismiss" title="Dismiss">✕</button>
       </div>
-      <p class="sp-onboarding-hint">Run this once in your terminal to set up the MCP server:</p>
-      <div class="sp-onboarding-cmd" id="sp-onboarding-cmd" title="Click to copy"></div>
-      <p class="sp-onboarding-step">Then say: <em>"fix all recent picks using clasp-it"</em></p>
+      <div class="sp-onboarding-body">
+        <p class="sp-mcp-hint">Run this once in your terminal to connect the MCP server:</p>
+        <div class="sp-mcp-code" id="sp-onboarding-cmd" title="Click to copy"></div>
+        <p class="sp-mcp-step">Then say: <em>"fix all recent picks using clasp-it"</em></p>
+      </div>
     </div>
     <div class="sp-history-header">Recent picks</div>
     <div id="sp-claude-tip" class="sp-claude-tip" style="display:none">
