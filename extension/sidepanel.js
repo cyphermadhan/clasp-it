@@ -64,12 +64,13 @@ function showScreen(name) {
 // ── Init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
-  const stored = await storageGet(["bp_api_key", "clasp_email", "clasp_plan", "clasp_history", "clasp_device_id"]);
+  const stored = await storageGet(["bp_api_key", "clasp_email", "clasp_plan", "clasp_history", "clasp_device_id", "clasp_limit_date"]);
   if (stored.bp_api_key) {
-    app.apiKey  = stored.bp_api_key;
-    app.email   = stored.clasp_email  || null;
-    app.plan    = stored.clasp_plan   || "free";
-    app.history = stored.clasp_history || [];
+    app.apiKey     = stored.bp_api_key;
+    app.email      = stored.clasp_email  || null;
+    app.plan       = stored.clasp_plan   || "free";
+    app.history    = stored.clasp_history || [];
+    app.limitDate  = stored.clasp_limit_date || null;
     applyPlanGating();
     initToggleListeners();
     await loadToggleValues();
@@ -211,7 +212,8 @@ async function fetchAuthInfo() {
     const data = await res.json();
     app.email = data.email || app.email;
     app.plan  = data.plan  || app.plan;
-    await storageSet({ clasp_email: app.email, clasp_plan: app.plan });
+    if (app.plan === "pro") { app.limitDate = null; }
+    await storageSet({ clasp_email: app.email, clasp_plan: app.plan, clasp_limit_date: app.limitDate });
     applyPlanGating();
     renderHeader();
     updatePickButton();
@@ -425,9 +427,15 @@ async function handleQuickSend(elementData, prompt = "") {
     await storageSet({ clasp_history: app.history });
     if (app.screen === "main") renderHistory();
   } else {
-    // Remove the failed history item and update the pick button state
+    // Remove the failed history item
     app.history = app.history.filter(h => h.id !== item.id);
-    await storageSet({ clasp_history: app.history });
+    // If rate limited, set the limit flag for today
+    if (result.error?.toLowerCase().includes("limit")) {
+      app.limitDate = new Date().toDateString();
+      await storageSet({ clasp_history: app.history, clasp_limit_date: app.limitDate });
+    } else {
+      await storageSet({ clasp_history: app.history });
+    }
     if (app.screen === "main") {
       renderHistory();
       updatePickButton();
@@ -557,15 +565,15 @@ function updatePickButton() {
   }
 
   const today = new Date().toDateString();
-  const todayCount = app.history.filter(h => new Date(h.sentAt).toDateString() === today).length;
-  const atLimit = todayCount >= 10;
+  // Clear stale flag from a previous day
+  if (app.limitDate && app.limitDate !== today) {
+    app.limitDate = null;
+    storageSet({ clasp_limit_date: null });
+  }
 
+  const atLimit = app.limitDate === today;
   btn.disabled = atLimit;
   banner.style.display = atLimit ? "flex" : "none";
-  if (atLimit) {
-    const upgradeLink = document.getElementById("sp-limit-upgrade");
-    if (upgradeLink) upgradeLink.href = "#";
-  }
 }
 
 // ── History ───────────────────────────────────────────────────────────────────
@@ -587,7 +595,8 @@ function renderHistory() {
   if (counter && app.plan !== "pro") {
     const today = new Date().toDateString();
     const todayCount = app.history.filter(h => new Date(h.sentAt).toDateString() === today).length;
-    counter.textContent = `${todayCount}/10 today`;
+    const atLimit = app.limitDate === today;
+    counter.textContent = atLimit ? "10/10 today" : `${todayCount}/10 today`;
   } else if (counter) {
     counter.textContent = "";
   }
