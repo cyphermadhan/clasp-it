@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Clasp It for Claude Code",
+  "name": "Clasp-it for Claude Code",
   "version": "1.0.0",
   "description": "Pick any webpage element and send it to Claude Code",
 

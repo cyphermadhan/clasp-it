@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <title>Clasp It</title>
+  <title>Clasp-it</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -57,40 +57,13 @@
     #sp-header {
       display: none;
       align-items: center;
-      gap: 8px;
-      padding: 11px 14px;
+      justify-content: flex-end;
+      padding: 8px 12px;
       background: var(--bg-tertiary);
       border-bottom: 0.5px solid var(--border-subtle);
       position: sticky;
       top: 0;
       z-index: 10;
-    }
-
-    .sp-header-logo {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      flex: 1;
-    }
-
-    .sp-header-mark {
-      width: 20px;
-      height: 20px;
-      background: var(--bg-inverse);
-      border-radius: var(--radius-xs);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .sp-header-mark svg { width: 11px; height: 11px; fill: var(--text-inverse); }
-
-    .sp-header-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-primary);
-      letter-spacing: -0.01em;
     }
 
     .sp-icon-btn {
@@ -489,13 +462,6 @@
 
 <!-- ── Header ── -->
 <div id="sp-header">
-  <div class="sp-header-logo">
-    <div class="sp-header-mark">
-      <!-- Clasp/pin icon -->
-      <svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 1a2 2 0 0 1 2 2v1h1a1 1 0 0 1 .894 1.447L10 9v3.5a.5.5 0 0 1-.854.354L8 11.707l-1.146 1.147A.5.5 0 0 1 6 12.5V9L4.106 5.447A1 1 0 0 1 5 4h1V3a2 2 0 0 1 2-2z"/></svg>
-    </div>
-    <span class="sp-header-title">Clasp It</span>
-  </div>
   <button id="sp-settings-btn" class="sp-icon-btn" title="Settings">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="3"/>
@@ -517,7 +483,7 @@
     <div class="sp-auth-brand-mark">
       <svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 1a2 2 0 0 1 2 2v1h1a1 1 0 0 1 .894 1.447L10 9v3.5a.5.5 0 0 1-.854.354L8 11.707l-1.146 1.147A.5.5 0 0 1 6 12.5V9L4.106 5.447A1 1 0 0 1 5 4h1V3a2 2 0 0 1 2-2z"/></svg>
     </div>
-    <h2>Clasp It</h2>
+    <h2>Clasp-it</h2>
     <p>Click any element. Send its context to Claude Code.</p>
   </div>
 
@@ -718,7 +684,7 @@
       <svg id="sp-mcp-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;transition:transform 0.2s"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
     <div class="sp-mcp-body" id="sp-mcp-body">
-      <p class="sp-mcp-hint">Add Clasp It as an MCP server in Claude Code so it can read your picks. The MCP key and extension key must be the same.</p>
+      <p class="sp-mcp-hint">Add Clasp-it as an MCP server in Claude Code so it can read your picks. The MCP key and extension key must be the same.</p>
       <p class="sp-mcp-step">1. Run in terminal (click to copy with your key):</p>
       <div class="sp-mcp-code" id="sp-mcp-cmd" title="Click to copy">claude mcp add --scope user --transport http clasp-it https://claspit.dev/mcp --header "Authorization: Bearer YOUR_KEY"</div>
       <p class="sp-mcp-step">2. Restart Claude Code, then say: <em>"fix all recent picks using clasp-it"</em></p>
