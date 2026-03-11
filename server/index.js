@@ -36,14 +36,6 @@ app.use((_req, res, next) => {
   next();
 });
 
-// Redirect www → apex
-app.use((req, res, next) => {
-  if (req.hostname === 'www.claspit.dev') {
-    return res.redirect(301, `https://claspit.dev${req.originalUrl}`);
-  }
-  next();
-});
-
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(join(__dirname, 'public'), { extensions: ['html'] }));
 
