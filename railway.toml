@@ -1,5 +1,5 @@
 [build]
-buildCommand = "cd server && npm ci --production"
+builder = "NIXPACKS"
 
 [deploy]
 startCommand = "node server/index.js"

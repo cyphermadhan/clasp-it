@@ -1,0 +1,7 @@
+providers = ["node"]
+
+[phases.install]
+cmds = ["cd server && npm ci --production"]
+
+[start]
+cmd = "node server/index.js"
