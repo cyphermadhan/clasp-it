@@ -29,21 +29,17 @@ if (chrome.webRequest) {
 }
 
 // ── Open side panel on icon click ─────────────────────────────────────────────
-// Use sidePanel API if available (Chrome 114+). Fall back to a popup window
-// for Arc and other Chromium browsers that don't support sidePanel.
+// Try chrome.sidePanel.open() explicitly (Chrome 116+).
+// Fall back to a popup window for Arc and other browsers that don't support it.
 
-if (chrome.sidePanel) {
-  chrome.sidePanel
-    .setPanelBehavior({ openPanelOnActionClick: true })
-    .catch((err) => console.warn("[ClaspIt] sidePanel.setPanelBehavior:", err));
-}
-
-chrome.action.onClicked.addListener((tab) => {
+chrome.action.onClicked.addListener(async (tab) => {
   consoleLogBuffer = [];
   networkRequestBuffer = [];
 
-  // Fallback for browsers without sidePanel support (e.g. Arc)
-  if (!chrome.sidePanel) {
+  try {
+    await chrome.sidePanel.open({ tabId: tab.id });
+  } catch {
+    // sidePanel not supported or failed (e.g. Arc) — open as popup
     chrome.windows.create({
       url: chrome.runtime.getURL("sidepanel.html"),
       type: "popup",
