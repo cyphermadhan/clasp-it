@@ -76,6 +76,7 @@ async function init() {
     showScreen("main");
     startStatusPolling();
     fetchAuthInfo(); // refresh in background
+    renderOnboarding();
   } else if (stored.clasp_device_id) {
     // Resume verifying state after panel reload
     app.deviceId = stored.clasp_device_id;
@@ -181,6 +182,7 @@ async function pollDevice() {
       showScreen("main");
       startStatusPolling();
       fetchAuthInfo();
+      renderOnboarding();
     } else if (data.status === "expired") {
       stopDevicePoll();
       await storageRemove(["clasp_device_id"]);
@@ -650,6 +652,40 @@ async function pollStatuses() {
   } catch {}
 }
 
+// ── Onboarding card ───────────────────────────────────────────────────────────
+
+const MCP_CMD_TEMPLATE = `claude mcp add --scope user --transport http clasp-it https://claspit.dev/mcp --header "Authorization: Bearer YOUR_KEY"`;
+
+async function renderOnboarding() {
+  const card = document.getElementById("sp-onboarding-card");
+  if (!card || !app.apiKey) return;
+
+  const { clasp_mcp_dismissed } = await storageGet(["clasp_mcp_dismissed"]);
+  if (clasp_mcp_dismissed) { card.style.display = "none"; return; }
+
+  const fullCmd = MCP_CMD_TEMPLATE.replace("YOUR_KEY", app.apiKey);
+  const maskedCmd = MCP_CMD_TEMPLATE.replace("YOUR_KEY", app.apiKey.slice(0, 6) + "••••••••••••");
+
+  const cmdEl = document.getElementById("sp-onboarding-cmd");
+  if (cmdEl) {
+    cmdEl.textContent = maskedCmd;
+    cmdEl.onclick = () => {
+      navigator.clipboard.writeText(fullCmd).then(() => {
+        const orig = cmdEl.textContent;
+        cmdEl.textContent = "Copied!";
+        setTimeout(() => { cmdEl.textContent = orig; }, 1500);
+      }).catch(() => {});
+    };
+  }
+
+  card.style.display = "";
+}
+
+document.getElementById("sp-onboarding-dismiss").addEventListener("click", async () => {
+  await storageSet({ clasp_mcp_dismissed: true });
+  document.getElementById("sp-onboarding-card").style.display = "none";
+});
+
 // ── Header ────────────────────────────────────────────────────────────────────
 
 function renderHeader() {
@@ -702,10 +738,11 @@ function renderSettings() {
     chip.textContent = "—";
   }
 
-  // Pre-fill MCP command with the real key so any copy method works
+  // Show masked key in MCP command; copy always uses the real key
   const mcpCmd = document.getElementById("sp-mcp-cmd");
   if (mcpCmd && app.apiKey) {
-    mcpCmd.textContent = mcpCmd.textContent.replace("YOUR_KEY", app.apiKey);
+    const masked = app.apiKey.slice(0, 6) + "••••••••••••";
+    mcpCmd.textContent = MCP_CMD_TEMPLATE.replace("YOUR_KEY", masked);
   }
 }
 
@@ -719,7 +756,10 @@ document.getElementById("sp-mcp-toggle").addEventListener("click", () => {
 });
 
 document.getElementById("sp-mcp-cmd").addEventListener("click", function () {
-  navigator.clipboard.writeText(this.textContent).then(() => {
+  const fullCmd = app.apiKey
+    ? MCP_CMD_TEMPLATE.replace("YOUR_KEY", app.apiKey)
+    : this.textContent;
+  navigator.clipboard.writeText(fullCmd).then(() => {
     const orig = this.textContent;
     this.textContent = "Copied!";
     setTimeout(() => { this.textContent = orig; }, 1500);
