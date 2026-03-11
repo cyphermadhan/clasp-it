@@ -19,6 +19,31 @@ import { storeDeviceVerification, claimDeviceVerification, hasDeviceVerification
 
 const router = Router();
 
+// ─── Simple IP-based rate limiter for auth endpoints ──────────────────────────
+// In-memory; resets on server restart. Good enough for abuse prevention.
+
+const signupRateLimit = new Map(); // ip → { count, resetAt }
+
+function checkSignupRateLimit(ip) {
+  const now = Date.now();
+  const entry = signupRateLimit.get(ip);
+  if (!entry || now > entry.resetAt) {
+    signupRateLimit.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 }); // 1h window
+    return true;
+  }
+  if (entry.count >= 10) return false;
+  entry.count++;
+  return true;
+}
+
+// ─── Email validation ─────────────────────────────────────────────────────────
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+function isValidEmail(email) {
+  return typeof email === 'string' && EMAIL_RE.test(email) && email.length <= 254;
+}
+
 // ─── Email helper ─────────────────────────────────────────────────────────────
 
 async function sendMagicLink(email, token) {
@@ -49,8 +74,13 @@ async function sendMagicLink(email, token) {
 // ─── POST /auth/signup ────────────────────────────────────────────────────────
 
 router.post('/signup', async (req, res) => {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+  if (!checkSignupRateLimit(ip)) {
+    return res.status(429).json({ error: 'Too many requests — try again later' });
+  }
+
   const { email, deviceId } = req.body ?? {};
-  if (!email || typeof email !== 'string' || !email.includes('@')) {
+  if (!email || !isValidEmail(email)) {
     return res.status(400).json({ error: 'Valid email is required' });
   }
 

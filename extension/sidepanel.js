@@ -521,48 +521,71 @@ function renderHistory() {
   const empty = document.getElementById("sp-history-empty");
   if (!list) return;
 
+  list.innerHTML = "";
+
   if (!app.history.length) {
     if (empty) empty.style.display = "";
-    list.innerHTML = "";
     return;
   }
 
   if (empty) empty.style.display = "none";
 
-  // Show tip when there are pending picks
   const tip = document.getElementById("sp-claude-tip");
   if (tip) tip.style.display = app.history.some(h => h.status !== "completed") ? "" : "none";
 
-  list.innerHTML = app.history.map(item => {
+  for (const item of app.history) {
     const statusLabel = { not_started: "Waiting", in_progress: "In progress", completed: "Done" }[item.status] || "Waiting";
     const statusClass = item.status || "not_started";
-    const time  = relativeTime(item.sentAt);
-    const label = esc(item.elementLabel || "element");
-    const url   = esc(shortUrl(item.pageURL || ""));
     const canDelete = !item.status || item.status === "not_started";
-    const prompt = item.prompt ? esc(item.prompt) : "";
-    return `<div class="sp-history-item" data-id="${esc(item.id)}">
-      <div class="sp-history-body">
-        <div class="sp-history-label">${label}</div>
-        ${prompt ? `<div class="sp-history-prompt">${prompt}</div>` : ""}
-        <div class="sp-history-meta">${url}${url ? " · " : ""}${time}</div>
-      </div>
-      ${canDelete
-        ? `<button class="sp-delete-btn" data-id="${esc(item.id)}" title="Delete">✕</button>`
-        : `<span class="sp-status-badge ${esc(statusClass)}">${esc(statusLabel)}</span>`
-      }
-    </div>`;
-  }).join("");
 
-  list.querySelectorAll(".sp-delete-btn").forEach(btn => {
-    btn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      const id = btn.dataset.id;
-      app.history = app.history.filter(h => h.id !== id);
-      await storageSet({ clasp_history: app.history });
-      renderHistory();
-    });
-  });
+    const row = document.createElement("div");
+    row.className = "sp-history-item";
+    row.dataset.id = item.id;
+
+    const body = document.createElement("div");
+    body.className = "sp-history-body";
+
+    const labelEl = document.createElement("div");
+    labelEl.className = "sp-history-label";
+    labelEl.textContent = item.elementLabel || "element";
+    body.appendChild(labelEl);
+
+    if (item.prompt) {
+      const promptEl = document.createElement("div");
+      promptEl.className = "sp-history-prompt";
+      promptEl.textContent = item.prompt;
+      body.appendChild(promptEl);
+    }
+
+    const meta = document.createElement("div");
+    meta.className = "sp-history-meta";
+    const url = shortUrl(item.pageURL || "");
+    meta.textContent = (url ? url + " · " : "") + relativeTime(item.sentAt);
+    body.appendChild(meta);
+
+    row.appendChild(body);
+
+    if (canDelete) {
+      const btn = document.createElement("button");
+      btn.className = "sp-delete-btn";
+      btn.title = "Delete";
+      btn.textContent = "✕";
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        app.history = app.history.filter(h => h.id !== item.id);
+        await storageSet({ clasp_history: app.history });
+        renderHistory();
+      });
+      row.appendChild(btn);
+    } else {
+      const badge = document.createElement("span");
+      badge.className = `sp-status-badge ${statusClass}`;
+      badge.textContent = statusLabel;
+      row.appendChild(badge);
+    }
+
+    list.appendChild(row);
+  }
 }
 
 function shortUrl(url) {
@@ -581,12 +604,6 @@ function relativeTime(ts) {
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
   return new Date(ts).toLocaleDateString();
-}
-
-function esc(s) {
-  return String(s || "")
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 // ── Status polling ────────────────────────────────────────────────────────────
