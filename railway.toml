@@ -1,0 +1,6 @@
+[build]
+buildCommand = "cd server && npm ci --production"
+
+[deploy]
+startCommand = "node server/index.js"
+restartPolicyType = "ON_FAILURE"
