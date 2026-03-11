@@ -57,7 +57,7 @@ function showScreen(name) {
     if (btn) { btn.disabled = false; btn.textContent = "Get free API key"; }
   }
   if (withHeader.includes(name)) renderHeader();
-  if (name === "main") renderHistory();
+  if (name === "main") { renderHistory(); updatePickButton(); }
   if (name === "settings") renderSettings();
 }
 
@@ -214,6 +214,7 @@ async function fetchAuthInfo() {
     await storageSet({ clasp_email: app.email, clasp_plan: app.plan });
     applyPlanGating();
     renderHeader();
+    updatePickButton();
   } catch {}
 }
 
@@ -423,6 +424,14 @@ async function handleQuickSend(elementData, prompt = "") {
     app.history = app.history.map(h => h.id === item.id ? { ...h, pickId: result.pickId } : h);
     await storageSet({ clasp_history: app.history });
     if (app.screen === "main") renderHistory();
+  } else {
+    // Remove the failed history item and update the pick button state
+    app.history = app.history.filter(h => h.id !== item.id);
+    await storageSet({ clasp_history: app.history });
+    if (app.screen === "main") {
+      renderHistory();
+      updatePickButton();
+    }
   }
 }
 
@@ -493,6 +502,10 @@ async function doSend(elementData, prompt, toggles) {
     });
 
     if (!res.ok) {
+      if (res.status === 429) {
+        const data = await res.json().catch(() => ({}));
+        return { error: data.error || "Daily pick limit reached. Upgrade to Pro for unlimited picks." };
+      }
       const text = await res.text().catch(() => res.statusText);
       return { error: `Error ${res.status}: ${text}` };
     }
@@ -511,6 +524,50 @@ function setStatus(msg, type = "") {
   el.className = "sp-status-line" + (type ? " " + type : "");
 }
 
+async function startCheckout() {
+  try {
+    const res = await fetch(`${SERVER_URL}/billing/checkout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(app.apiKey ? { "Authorization": `Bearer ${app.apiKey}` } : {}),
+      },
+      body: JSON.stringify({ plan: "pro" }),
+    });
+    const data = await res.json();
+    if (data.url) {
+      chrome.tabs.create({ url: data.url });
+    } else {
+      console.error("[checkout]", data.error);
+    }
+  } catch (err) {
+    console.error("[checkout]", err.message);
+  }
+}
+
+function updatePickButton() {
+  const btn = document.getElementById("sp-pick-btn");
+  const banner = document.getElementById("sp-limit-banner");
+  if (!btn || !banner) return;
+
+  if (app.plan === "pro") {
+    btn.disabled = false;
+    banner.style.display = "none";
+    return;
+  }
+
+  const today = new Date().toDateString();
+  const todayCount = app.history.filter(h => new Date(h.sentAt).toDateString() === today).length;
+  const atLimit = todayCount >= 10;
+
+  btn.disabled = atLimit;
+  banner.style.display = atLimit ? "flex" : "none";
+  if (atLimit) {
+    const upgradeLink = document.getElementById("sp-limit-upgrade");
+    if (upgradeLink) upgradeLink.href = "#";
+  }
+}
+
 // ── History ───────────────────────────────────────────────────────────────────
 
 async function addHistoryItem(item) {
@@ -524,6 +581,16 @@ function renderHistory() {
   const list  = document.getElementById("sp-history-list");
   const empty = document.getElementById("sp-history-empty");
   if (!list) return;
+
+  // Update today's pick counter
+  const counter = document.getElementById("sp-picks-counter");
+  if (counter && app.plan !== "pro") {
+    const today = new Date().toDateString();
+    const todayCount = app.history.filter(h => new Date(h.sentAt).toDateString() === today).length;
+    counter.textContent = `${todayCount}/10 today`;
+  } else if (counter) {
+    counter.textContent = "";
+  }
 
   list.innerHTML = "";
 
@@ -703,6 +770,19 @@ function renderHeader() {
 document.getElementById("sp-settings-btn").addEventListener("click", () => showScreen("settings"));
 document.getElementById("sp-settings-back-btn").addEventListener("click", () => showScreen("main"));
 
+document.getElementById("sp-limit-upgrade").addEventListener("click", async (e) => {
+  e.preventDefault();
+  startCheckout();
+});
+
+document.getElementById("sp-limit-refresh").addEventListener("click", async (e) => {
+  e.preventDefault();
+  const el = e.target;
+  el.textContent = "Checking…";
+  await fetchAuthInfo();
+  el.textContent = "Already upgraded? Refresh ↺";
+});
+
 document.getElementById("sp-signout-btn").addEventListener("click", async () => {
   stopDevicePoll();
   stopStatusPolling();
@@ -725,7 +805,8 @@ function renderSettings() {
   const upgradeLink = document.getElementById("settings-upgrade-link");
   if (app.plan !== "pro") {
     upgradeLink.style.display = "";
-    upgradeLink.href = SERVER_URL + "/upgrade";
+    upgradeLink.href = "#";
+    upgradeLink.onclick = (e) => { e.preventDefault(); startCheckout(); };
   } else {
     upgradeLink.style.display = "none";
   }

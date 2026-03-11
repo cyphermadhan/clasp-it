@@ -700,7 +700,7 @@
         <p class="plan-name">Pro</p>
         <p class="plan-price">$19 <span>one-time</span></p>
         <p class="plan-desc">Pay once. Unlimited picks + full context capture, forever.</p>
-        <a href="#" class="plan-cta plan-cta-pro">Get Pro — $19</a>
+        <a href="/upgrade" id="pro-cta" class="plan-cta plan-cta-pro">Get Pro — $19</a>
         <hr class="plan-divider" />
         <ul class="plan-features">
           <li>Everything in Free</li>
@@ -721,6 +721,12 @@
       <a href="mailto:dev@madhans.world">dev@madhans.world</a>
     </div>
   </footer>
+
+  <script>
+    if (window.location.hash === "#pricing") {
+      document.querySelector(".pricing")?.scrollIntoView({ behavior: "smooth" });
+    }
+  </script>
 
 </body>
 </html>

@@ -423,7 +423,7 @@ router.post('/webhook', async (req, res) => {
 
 // ─── POST /billing/checkout ───────────────────────────────────────────────────
 
-router.post('/checkout', requireSession, async (req, res) => {
+router.post('/checkout', async (req, res) => {
   const productId = process.env.DODO_PRODUCT_PRO;
   if (!productId) {
     return res.status(503).json({ error: 'Pro product not configured' });
@@ -442,25 +442,47 @@ router.post('/checkout', requireSession, async (req, res) => {
 
     const appUrl = process.env.APP_URL ?? 'http://localhost:3001';
 
-    let userEmail = req.userEmail;
+    // Resolve user — prefer API key auth, fall back to email in body (website flow)
+    let userEmail = null;
     let dodoCustomerId = null;
-    if (pool) {
+
+    const rawKey = req.headers['x-api-key'] ||
+      (req.headers['authorization']?.startsWith('Bearer ') ? req.headers['authorization'].slice(7) : null);
+
+    if (rawKey && pool) {
+      const { hashKey } = await import('../lib/auth.js');
       const result = await pool.query(
-        'SELECT email, dodo_customer_id FROM users WHERE id = $1',
-        [req.userId],
+        `SELECT u.email, u.dodo_customer_id
+         FROM api_keys ak JOIN users u ON u.id = ak.user_id
+         WHERE ak.key_hash = $1`,
+        [hashKey(rawKey)],
       );
-      userEmail = result.rows[0]?.email ?? userEmail;
+      userEmail = result.rows[0]?.email ?? null;
       dodoCustomerId = result.rows[0]?.dodo_customer_id ?? null;
+    }
+
+    if (!userEmail) {
+      userEmail = req.body?.email?.toLowerCase().trim() ?? null;
+      if (!userEmail || !isValidEmail(userEmail)) {
+        return res.status(400).json({ error: 'Valid email is required' });
+      }
+      if (pool) {
+        const result = await pool.query(
+          'SELECT dodo_customer_id FROM users WHERE email = $1',
+          [userEmail],
+        );
+        dodoCustomerId = result.rows[0]?.dodo_customer_id ?? null;
+      }
     }
 
     const customer = dodoCustomerId
       ? { customer_id: dodoCustomerId }
-      : { email: userEmail, name: userEmail?.split('@')[0] ?? 'User', create_new_customer: false };
+      : { email: userEmail, name: userEmail.split('@')[0] ?? 'User', create_new_customer: false };
 
     const session = await dodo.checkoutSessions.create({
       product_cart: [{ product_id: productId, quantity: 1 }],
       customer,
-      return_url: `${appUrl}/dashboard?checkout=success`,
+      return_url: `${appUrl}/verified?checkout=success`,
     });
 
     return res.json({ url: session.checkout_url });

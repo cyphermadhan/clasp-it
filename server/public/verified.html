@@ -63,14 +63,31 @@
 </head>
 <body>
   <a href="/" class="nav-logo">clasp<span>it</span></a>
-  <div class="card">
+  <div class="card" id="card-verified" style="display:none">
     <div class="icon">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
         <path d="M5 13l4 4L19 7" stroke="#c6613f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </div>
     <h1>You're verified!</h1>
-    <p>Your API key has been created. Return to the Clasp It extension — it should be ready to use.</p>
+    <p>Your API key has been created. Return to the Clasp-it extension — it should be ready to use.</p>
   </div>
+  <div class="card" id="card-upgraded" style="display:none">
+    <div class="icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M5 13l4 4L19 7" stroke="#c6613f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h1>You're on Pro!</h1>
+    <p>Your plan has been upgraded. Open the Clasp-it extension and tap <strong>"Already upgraded? Refresh"</strong> to activate unlimited picks.</p>
+  </div>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") === "success") {
+      document.getElementById("card-upgraded").style.display = "";
+    } else {
+      document.getElementById("card-verified").style.display = "";
+    }
+  </script>
 </body>
 </html>
