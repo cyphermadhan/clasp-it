@@ -61,15 +61,30 @@ clasp/
 ## What's done
 - ✅ Phase 1: Chrome extension + MCP server (element picker, context capture, MCP tools)
 - ✅ Phase 2: Auth (magic link), API keys, Dodo Payments, feature gating, rate limiting
-- ✅ Phase 3 (partial): Landing page, /verified page, custom domain, Upstash Redis
+- ✅ Phase 3: Landing page, /verified page, /upgrade page, custom domain, Upstash Redis
 - ✅ Extension: Sidebar fully redesigned (complete state machine, history, feature gating)
 - ✅ Extension: Picker UX — hover highlights; click shows floating prompt dialog (Figma design)
 - ✅ Extension: Floating dialog uses custom SVG icons (close + ArrowUp), fully CSS-isolated
 - ✅ Extension: All URLs updated to claspit.dev
+- ✅ Extension: Daily pick counter (`X/10 today`) in Recent picks header (free users)
+- ✅ Extension: Rate limit UX — button disabled + info banner (blue Anthropic colors) when limit hit
+- ✅ Extension: `startCheckout()` — calls `/billing/checkout` with API key → opens Dodo URL directly (no email in URL)
+- ✅ Extension: "Already upgraded? Refresh" link re-fetches plan from server
+- ✅ Extension: `clasp_limit_date` flag in chrome.storage — server-authoritative rate limit tracking (resets next day, clears on Pro upgrade)
 - ✅ Server: Bearer token auth (`Authorization: Bearer`) alongside `X-API-Key`
 - ✅ Server: `initSchema()` non-fatal, SSL fix for Neon on Railway
 - ✅ Server: Static site served from `server/public/` via `express.static`
+- ✅ Server: `/billing/checkout` accepts API key auth (resolves email from DB) or plain email body (website flow)
 - ✅ Infrastructure: Neon + Upstash Redis + Railway Hobby + claspit.dev domain all live
+- ✅ Infrastructure: `railway.toml` + `nixpacks.toml` fix for monorepo (app in `server/` subdir)
+- ✅ Website: Anthropic font system (AnthropicSans body, AnthropicSerif headings, AnthropicMono code)
+- ✅ Website: Product name standardised to `Clasp-it` throughout
+- ✅ Website: Nav logo uses extension icon PNG + plain font text
+- ✅ Website: SVG step illustrations in "How it works" section
+- ✅ Website: Pricing section — "Most popular" badge, CTA buttons, gradient, hover shadows
+- ✅ Website: Footer email → `dev@madhans.world`, removed "Setup docs" link
+- ✅ Website: `/upgrade` page — email input → Dodo checkout → `/verified?checkout=success`
+- ✅ Website: `/verified` handles both magic-link verification and post-payment success
 
 ## Picker UX flow
 1. User clicks "Pick Element" → picker activates (crosshair cursor, highlight overlay)
@@ -134,11 +149,13 @@ To update the key later: `claude mcp remove clasp` then re-add.
 ## Website (server/public/)
 - Single scrolling page — no separate dashboard, no login
 - All account management done in the Chrome extension
-- Pages: `index.html` (landing), `verified.html` (post magic-link)
+- Pages: `index.html` (landing), `verified.html` (post magic-link + post-payment), `upgrade.html` (Dodo checkout entry)
 
 ## What's next
-1. Chrome Web Store submission
-2. `www.claspit.dev` redirect (optional)
+1. ⏳ Chrome Web Store submission — submitted, awaiting review
+2. ~~`www.claspit.dev` redirect~~ — skipped (Railway charges per extra domain)
+3. Test full upgrade flow end-to-end (Dodo checkout → webhook → plan update → extension refresh)
+4. Verify `DODO_PRODUCT_PRO` env var is set on Railway (currently `DODO_PRODUCT_PRO_MONTHLY` + `DODO_PRODUCT_PRO_ANNUAL` — checkout route uses `DODO_PRODUCT_PRO`)
 
 ## Future refinements (planned, not built)
 
