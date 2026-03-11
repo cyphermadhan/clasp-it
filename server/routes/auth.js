@@ -396,33 +396,20 @@ router.post('/webhook', async (req, res) => {
     const productId = data.product_id ?? data.items?.[0]?.product_id;
 
     switch (event.type) {
-      case 'subscription.active': {
+      case 'payment.succeeded': {
         const plan = productIdToPlan(productId) ?? 'pro';
+        const email = data.customer?.email ?? null;
         await pool.query(
           `UPDATE users SET plan = $1, dodo_customer_id = $2
            WHERE dodo_customer_id = $2 OR (dodo_customer_id IS NULL AND email = $3)`,
-          [plan, customerId, data.customer?.email ?? null],
+          [plan, customerId, email],
         );
-        console.log(`[auth] Activated ${plan} for Dodo customer ${customerId}`);
+        console.log(`[auth] Pro activated via one-time payment for ${email}`);
         break;
       }
 
-      case 'subscription.renewed':
-      case 'subscription.updated': {
-        const plan = productIdToPlan(productId);
-        if (plan) {
-          await pool.query('UPDATE users SET plan = $1 WHERE dodo_customer_id = $2', [
-            plan,
-            customerId,
-          ]);
-        }
-        break;
-      }
-
-      case 'subscription.failed':
-      case 'subscription.on_hold': {
-        // Grace period: keep current plan, just log
-        console.warn(`[auth] Subscription ${event.type} for Dodo customer ${customerId}`);
+      case 'payment.failed': {
+        console.warn(`[auth] Payment failed for Dodo customer ${customerId}`);
         break;
       }
     }
@@ -437,9 +424,9 @@ router.post('/webhook', async (req, res) => {
 // ─── POST /billing/checkout ───────────────────────────────────────────────────
 
 router.post('/checkout', requireSession, async (req, res) => {
-  const { productId } = req.body ?? {};
+  const productId = process.env.DODO_PRODUCT_PRO;
   if (!productId) {
-    return res.status(400).json({ error: 'productId is required' });
+    return res.status(503).json({ error: 'Pro product not configured' });
   }
 
   if (!process.env.DODO_API_KEY) {
@@ -517,10 +504,7 @@ router.get('/portal', requireSession, async (req, res) => {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function productIdToPlan(productId) {
-  const proMonthly = process.env.DODO_PRODUCT_PRO_MONTHLY;
-  const proAnnual = process.env.DODO_PRODUCT_PRO_ANNUAL;
-
-  if (productId === proMonthly || productId === proAnnual) return 'pro';
+  if (productId === process.env.DODO_PRODUCT_PRO) return 'pro';
   return null;
 }
 
