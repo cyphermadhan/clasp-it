@@ -106,7 +106,7 @@ POST /billing/webhook          — Dodo webhook handler
 
 ## MCP install command
 ```
-claude mcp add --scope user --transport http clasp https://claspit.dev/mcp --header "Authorization: Bearer YOUR_API_KEY"
+claude mcp add --scope user --transport http clasp-it https://claspit.dev/mcp --header "Authorization: Bearer YOUR_API_KEY"
 ```
 To update the key later: `claude mcp remove clasp` then re-add.
 

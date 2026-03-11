@@ -26,7 +26,7 @@ Claude Code      → MCP  https://claspit.dev/mcp
 After signing up and getting your API key in the extension:
 
 ```bash
-claude mcp add --scope user --transport http clasp https://claspit.dev/mcp \
+claude mcp add --scope user --transport http clasp-it https://claspit.dev/mcp \
   --header "Authorization: Bearer YOUR_API_KEY"
 ```
 
