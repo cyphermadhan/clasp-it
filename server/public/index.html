@@ -886,5 +886,45 @@
     })();
   </script>
 
+  <!-- VibeSignals Analytics -->
+  <script type="module">
+    import { observe } from "https://cdn.jsdelivr.net/npm/@vibesignals/observe@latest/dist/index.mjs";
+
+    const vs = observe({ apiKey: "acgfpGDz5qvPlYyMKhZvxZVYVQZ4KQtupgPMD1ljeY0" });
+
+    // Track page view
+    vs.track("page_view", { page: "landing" });
+
+    // Track demo opened
+    const origOpenDemo = window.openDemo;
+    window.openDemo = function () {
+      vs.track("demo_opened");
+      origOpenDemo();
+    };
+
+    // Track beta signup
+    document.getElementById("hero-signup-btn").addEventListener("click", () => {
+      const email = document.getElementById("hero-email").value.trim();
+      if (email && email.includes("@")) {
+        vs.track("beta_signup_submitted");
+      }
+    });
+
+    // Track upgrade CTA clicked
+    document.getElementById("pro-cta")?.addEventListener("click", () => {
+      vs.track("upgrade_cta_clicked");
+    });
+
+    // Track pricing section viewed (IntersectionObserver)
+    const pricingSection = document.querySelector(".pricing");
+    if (pricingSection) {
+      new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          vs.track("pricing_section_viewed");
+        }
+      }, { threshold: 0.3 }).observe(pricingSection);
+    }
+  </script>
+
 </body>
 </html>

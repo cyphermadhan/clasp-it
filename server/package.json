@@ -11,12 +11,13 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
+    "@vibesignals/observe": "^1.0.0-b1",
     "cors": "^2.8.5",
+    "dodopayments": "^1.0.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "ioredis": "^5.3.2",
     "pg": "^8.11.5",
-    "dodopayments": "^1.0.0",
     "resend": "^4.0.0",
     "uuid": "^10.0.0"
   },

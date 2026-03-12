@@ -96,5 +96,11 @@
       document.getElementById("card-verified").style.display = "";
     }
   </script>
+  <script type="module">
+    import { observe } from "https://cdn.jsdelivr.net/npm/@vibesignals/observe@latest/dist/index.mjs";
+    const vs = observe({ apiKey: "acgfpGDz5qvPlYyMKhZvxZVYVQZ4KQtupgPMD1ljeY0" });
+    const isCheckout = new URLSearchParams(window.location.search).get("checkout") === "success";
+    vs.track(isCheckout ? "upgrade_completed" : "email_verified");
+  </script>
 </body>
 </html>
