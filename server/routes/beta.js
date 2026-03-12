@@ -85,7 +85,7 @@ async function sendWelcomeEmail(email, apiKey) {
   const setupUrl = `${appUrl}/downloads/clasp-it-setup.md`;
 
   if (!process.env.RESEND_API_KEY) {
-    console.log(`[beta] Welcome email for ${email}. Key: ${apiKey}`);
+    console.log(`[beta] Welcome email for ${email} (dev mode — no email sent, key omitted from logs)`);
     return;
   }
 

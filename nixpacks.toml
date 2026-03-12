@@ -1,7 +1,10 @@
 providers = ["node"]
 
 [phases.install]
-cmds = ["cd server && npm ci --production"]
+cmds = ["cd website && npm ci", "cd server && npm ci --production"]
+
+[phases.build]
+cmds = ["cd website && npm run build"]
 
 [start]
 cmd = "node server/index.js"

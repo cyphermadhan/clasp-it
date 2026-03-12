@@ -4,103 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/png" href="/icon.png" />
-  <title>Verified — Clasp It</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #faf9f7;
-      color: #141413;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    .card {
-      text-align: center;
-      max-width: 380px;
-      padding: 0 24px;
-    }
-
-    .icon {
-      width: 56px;
-      height: 56px;
-      background: rgba(198, 97, 63, 0.1);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 24px;
-    }
-
-    h1 {
-      font-size: 24px;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-      margin-bottom: 10px;
-    }
-
-    p {
-      font-size: 15px;
-      color: #73726c;
-      line-height: 1.6;
-    }
-
-    .nav-logo {
-      position: fixed;
-      top: 24px;
-      left: 32px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 17px;
-      font-weight: 600;
-      color: #141413;
-      text-decoration: none;
-    }
-
-    .nav-logo img {
-      width: 24px;
-      height: 24px;
-    }
-  </style>
+  <title>Verified — Clasp-it</title>
+  <script type="module" crossorigin src="/assets/verified-B3hwGAH0.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/analytics-L_6RyDXu.js">
+  <link rel="stylesheet" crossorigin href="/assets/analytics-Ce8KYGJ-.css">
+  <link rel="stylesheet" crossorigin href="/assets/verified-B_vuAoNd.css">
 </head>
 <body>
-  <a href="/" class="nav-logo"><img src="/icon.png" alt="Clasp-it logo" />Clasp-it</a>
-  <div class="card" id="card-verified" style="display:none">
-    <div class="icon">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-        <path d="M5 13l4 4L19 7" stroke="#c6613f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </div>
-    <h1>You're verified!</h1>
-    <p>Your API key has been created. Return to the Clasp-it extension — it should be ready to use.</p>
-  </div>
-  <div class="card" id="card-upgraded" style="display:none">
-    <div class="icon">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-        <path d="M5 13l4 4L19 7" stroke="#c6613f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </div>
-    <h1>You're on Pro!</h1>
-    <p>Your plan has been upgraded. Open the Clasp-it extension and tap <strong>"Already upgraded? Refresh"</strong> to activate unlimited picks.</p>
-  </div>
-  <script>
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("checkout") === "success") {
-      document.getElementById("card-upgraded").style.display = "";
-    } else {
-      document.getElementById("card-verified").style.display = "";
-    }
-  </script>
-  <script type="module">
-    import { observe } from "https://cdn.jsdelivr.net/npm/@vibesignals/observe@latest/dist/index.mjs";
-    const vs = observe({ apiKey: "acgfpGDz5qvPlYyMKhZvxZVYVQZ4KQtupgPMD1ljeY0" });
-    const isCheckout = new URLSearchParams(window.location.search).get("checkout") === "success";
-    vs.track(isCheckout ? "upgrade_completed" : "email_verified");
-  </script>
+  <div id="root"></div>
 </body>
 </html>

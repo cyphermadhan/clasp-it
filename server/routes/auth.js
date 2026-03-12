@@ -52,7 +52,7 @@ async function sendMagicLink(email, token) {
 
   if (!process.env.RESEND_API_KEY) {
     // Dev mode: log the link instead of sending email
-    console.log(`[auth] Magic link for ${email}: ${link}`);
+    console.log(`[auth] Magic link for ${email}: [link omitted — dev mode]`);
     return;
   }
 
@@ -382,7 +382,7 @@ router.post('/webhook', async (req, res) => {
     );
   } catch (err) {
     console.error('[auth] Dodo webhook signature error:', err.message);
-    return res.status(400).json({ error: `Webhook error: ${err.message}` });
+    return res.status(400).json({ error: 'Webhook signature invalid' });
   }
 
   if (!pool) {

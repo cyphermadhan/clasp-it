@@ -12,12 +12,6 @@ const PRO_TOGGLE_IDS = [
 
 const ALL_TOGGLE_IDS = ["sp-toggle-dom", "sp-toggle-styles", ...PRO_TOGGLE_IDS];
 
-// ── Analytics ────────────────────────────────────────────────────────────────
-// window.track is set by analytics.js (module). Safe no-op until ready.
-function track(event, props) {
-  window.track?.(event, props);
-}
-
 // ── App state ────────────────────────────────────────────────────────────────
 
 const app = {
@@ -84,7 +78,6 @@ async function init() {
     startStatusPolling();
     fetchAuthInfo(); // refresh in background
     renderOnboarding();
-    track("panel_opened", { plan: app.plan });
   } else if (stored.clasp_device_id) {
     // Resume verifying state after panel reload
     app.deviceId = stored.clasp_device_id;
@@ -191,7 +184,6 @@ async function pollDevice() {
       startStatusPolling();
       fetchAuthInfo();
       renderOnboarding();
-      track("signup_completed");
     } else if (data.status === "expired") {
       stopDevicePoll();
       await storageRemove(["clasp_device_id"]);
@@ -243,7 +235,6 @@ async function startPicking() {
   try {
     await chrome.tabs.sendMessage(tab.id, { type: "START_PICKING" });
     showScreen("picking");
-    track("pick_started");
     return;
   } catch { /* not loaded or connection stale — fall through to inject */ }
 
@@ -395,7 +386,6 @@ async function handleSend() {
   sendBtn.disabled = false;
 
   if (result.pickId) {
-    track("pick_sent", { plan: app.plan });
     setStatus("Sent to Claude Code!", "ok");
     await addHistoryItem({
       id:           crypto.randomUUID(),
@@ -441,7 +431,6 @@ async function handleQuickSend(elementData, prompt = "") {
     app.history = app.history.filter(h => h.id !== item.id);
     // If rate limited, set the limit flag for today
     if (result.error?.toLowerCase().includes("limit")) {
-      track("rate_limit_hit");
       app.limitDate = new Date().toDateString();
       await storageSet({ clasp_history: app.history, clasp_limit_date: app.limitDate });
     } else {
@@ -544,7 +533,6 @@ function setStatus(msg, type = "") {
 }
 
 async function startCheckout() {
-  track("upgrade_clicked");
   try {
     const res = await fetch(`${SERVER_URL}/billing/checkout`, {
       method: "POST",
