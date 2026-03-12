@@ -533,6 +533,10 @@ function setStatus(msg, type = "") {
 }
 
 async function startCheckout() {
+  const upgradeLink = document.getElementById("settings-upgrade-link");
+  const original = upgradeLink?.textContent;
+  if (upgradeLink) { upgradeLink.textContent = "Opening…"; upgradeLink.style.pointerEvents = "none"; }
+
   try {
     const res = await fetch(`${SERVER_URL}/billing/checkout`, {
       method: "POST",
@@ -547,9 +551,16 @@ async function startCheckout() {
       chrome.tabs.create({ url: data.url });
     } else {
       console.error("[checkout]", data.error);
+      if (upgradeLink) upgradeLink.textContent = data.error || "Something went wrong — try again";
     }
   } catch (err) {
     console.error("[checkout]", err.message);
+    if (upgradeLink) upgradeLink.textContent = "Network error — try again";
+  } finally {
+    if (upgradeLink) {
+      upgradeLink.style.pointerEvents = "";
+      setTimeout(() => { if (upgradeLink.textContent !== original) upgradeLink.textContent = original; }, 3000);
+    }
   }
 }
 
