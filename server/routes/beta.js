@@ -110,8 +110,8 @@ async function sendWelcomeEmail(email, apiKey) {
           <p style="margin:0 0 12px;font-size:14px;color:#73726c;line-height:1.6;">
             This command adds Clasp-it as an MCP server so Claude Code can read your picks. Run it once in your terminal — your API key is already filled in:
           </p>
-          <div style="background:#141413;border-radius:8px;padding:14px 16px;overflow:hidden;">
-            <p style="margin:0;font-family:'SF Mono',Consolas,monospace;font-size:11px;color:#e8e6e1;word-break:break-all;line-height:1.6;">${mcpCmd}</p>
+          <div style="background:#f5f4ed;border:1px solid rgba(31,30,29,0.12);border-radius:8px;padding:14px 16px;overflow:hidden;">
+            <p style="margin:0;font-family:'SF Mono',Consolas,monospace;font-size:11px;color:#141413;word-break:break-all;line-height:1.6;">${mcpCmd}</p>
           </div>
           <p style="margin:8px 0 0;font-size:12px;color:#73726c;">After running this, restart Claude Code.</p>
         </td></tr>
@@ -181,7 +181,36 @@ router.post('/signup', async (req, res) => {
   const normalised = email.toLowerCase().trim();
 
   try {
-    // Upsert user
+    // Check if this email already signed up — if so, re-send the same key
+    const existing = await pool.query(
+      `SELECT ak.key_prefix, bs.email
+       FROM beta_signups bs
+       JOIN api_keys ak ON ak.id = bs.api_key_id
+       WHERE bs.email = $1`,
+      [normalised],
+    );
+
+    if (existing.rows.length > 0) {
+      // Already signed up — we can't recover the raw key (it's hashed).
+      // Generate a fresh key and update the record so they can still use the product.
+      const userResult = await pool.query('SELECT id FROM users WHERE email = $1', [normalised]);
+      const userId = userResult.rows[0]?.id;
+      if (userId) {
+        const { raw, hash, prefix } = generateApiKey();
+        const keyResult = await pool.query(
+          `INSERT INTO api_keys (user_id, key_hash, key_prefix, label) VALUES ($1, $2, $3, $4) RETURNING id`,
+          [userId, hash, prefix, 'Beta'],
+        );
+        await pool.query(
+          `UPDATE beta_signups SET api_key_id = $1 WHERE email = $2`,
+          [keyResult.rows[0].id, normalised],
+        );
+        await sendWelcomeEmail(normalised, raw);
+      }
+      return res.json({ success: true });
+    }
+
+    // New signup — upsert user, generate key, record signup
     const userResult = await pool.query(
       `INSERT INTO users (email)
        VALUES ($1)
@@ -191,7 +220,6 @@ router.post('/signup', async (req, res) => {
     );
     const userId = userResult.rows[0].id;
 
-    // Generate API key
     const { raw, hash, prefix } = generateApiKey();
     const keyResult = await pool.query(
       `INSERT INTO api_keys (user_id, key_hash, key_prefix, label)
@@ -199,17 +227,12 @@ router.post('/signup', async (req, res) => {
        RETURNING id`,
       [userId, hash, prefix, 'Beta'],
     );
-    const keyId = keyResult.rows[0].id;
 
-    // Record beta signup (idempotent — ignore duplicate email)
     await pool.query(
-      `INSERT INTO beta_signups (email, user_id, api_key_id)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (email) DO NOTHING`,
-      [normalised, userId, keyId],
+      `INSERT INTO beta_signups (email, user_id, api_key_id) VALUES ($1, $2, $3)`,
+      [normalised, userId, keyResult.rows[0].id],
     );
 
-    // Send welcome email
     await sendWelcomeEmail(normalised, raw);
 
     return res.json({ success: true });
