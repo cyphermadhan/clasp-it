@@ -35,6 +35,49 @@ function isValidEmail(e) {
 
 // ─── Welcome email ────────────────────────────────────────────────────────────
 
+async function sendAlreadySignedUpEmail(email) {
+  if (!process.env.RESEND_API_KEY) {
+    console.log(`[beta] Already signed up nudge for ${email}`);
+    return;
+  }
+
+  const { Resend } = await import('resend');
+  const resend = new Resend(process.env.RESEND_API_KEY);
+
+  await resend.emails.send({
+    from: process.env.RESEND_FROM ?? 'Clasp It <hello@claspit.dev>',
+    to: email,
+    subject: 'You\'re already signed up for Clasp-it',
+    html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8" /></head>
+<body style="margin:0;padding:0;background:#faf9f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#141413;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#faf9f7;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;border:1px solid rgba(31,30,29,0.1);overflow:hidden;">
+        <tr><td style="background:#c6613f;padding:24px 32px;">
+          <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">Clasp-it</p>
+          <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.8);">Pick any element. Fix it with Claude.</p>
+        </td></tr>
+        <tr><td style="padding:32px;">
+          <p style="margin:0 0 12px;font-size:16px;font-weight:600;color:#141413;">You're already signed up!</p>
+          <p style="margin:0 0 16px;font-size:14px;color:#73726c;line-height:1.6;">
+            Looks like you've already joined the Clasp-it beta. Your API key was sent in your original welcome email — check your inbox for an email with the subject <strong style="color:#141413;">"Your Clasp-it beta access is ready"</strong>.
+          </p>
+          <p style="margin:0 0 16px;font-size:14px;color:#73726c;line-height:1.6;">
+            Can't find it? Check your spam folder, or just reply to this email and I'll sort it out for you.
+          </p>
+          <p style="margin:0;font-size:12px;color:rgba(115,114,108,0.6);">© 2026 Clasp-it · <a href="https://claspit.dev" style="color:rgba(115,114,108,0.6);">claspit.dev</a></p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+  });
+}
+
 async function sendWelcomeEmail(email, apiKey) {
   const appUrl = process.env.APP_URL ?? 'http://localhost:3001';
   const mcpCmd = `claude mcp add --scope user --transport http clasp-it ${appUrl}/mcp --header "Authorization: Bearer ${apiKey}"`;
@@ -191,22 +234,8 @@ router.post('/signup', async (req, res) => {
     );
 
     if (existing.rows.length > 0) {
-      // Already signed up — we can't recover the raw key (it's hashed).
-      // Generate a fresh key and update the record so they can still use the product.
-      const userResult = await pool.query('SELECT id FROM users WHERE email = $1', [normalised]);
-      const userId = userResult.rows[0]?.id;
-      if (userId) {
-        const { raw, hash, prefix } = generateApiKey();
-        const keyResult = await pool.query(
-          `INSERT INTO api_keys (user_id, key_hash, key_prefix, label) VALUES ($1, $2, $3, $4) RETURNING id`,
-          [userId, hash, prefix, 'Beta'],
-        );
-        await pool.query(
-          `UPDATE beta_signups SET api_key_id = $1 WHERE email = $2`,
-          [keyResult.rows[0].id, normalised],
-        );
-        await sendWelcomeEmail(normalised, raw);
-      }
+      // Already signed up — send a nudge email, no new key created
+      await sendAlreadySignedUpEmail(normalised);
       return res.json({ success: true });
     }
 
