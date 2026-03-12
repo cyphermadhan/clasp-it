@@ -258,6 +258,7 @@ export default function Home() {
         <p>© 2026 Clasp-it</p>
         <div className="footer-links">
           <a href="mailto:dev@madhans.world">dev@madhans.world</a>
+          <a href="/privacy">Privacy Policy</a>
         </div>
       </footer>
     </>
