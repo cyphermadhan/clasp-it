@@ -70,6 +70,14 @@ export async function initSchema() {
     );
 
     ALTER TABLE picks ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'not_started';
+
+    CREATE TABLE IF NOT EXISTS beta_signups (
+      id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      email       TEXT UNIQUE NOT NULL,
+      user_id     UUID REFERENCES users(id) ON DELETE SET NULL,
+      api_key_id  UUID REFERENCES api_keys(id) ON DELETE SET NULL,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
   `);
 
   console.log('[db] Schema initialised');

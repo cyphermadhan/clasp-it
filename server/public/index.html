@@ -543,6 +543,38 @@
       gap: 24px;
     }
 
+    /* ── Beta signup ── */
+    .hero-signup {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .hero-signup input[type="email"] {
+      padding: 11px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 15px;
+      background: var(--bg-card);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+      width: 220px;
+    }
+
+    .hero-signup input[type="email"]:focus { border-color: var(--accent); }
+    .hero-signup input[type="email"].error { border-color: #c0392b; }
+
+    .hero-signup-success {
+      font-size: 15px;
+      color: var(--accent);
+      font-weight: 500;
+      display: none;
+    }
+
     /* ── Demo Modal ── */
     .demo-overlay {
       display: none;
@@ -624,7 +656,7 @@
   <!-- Nav -->
   <nav>
     <div class="nav-logo"><img src="/icon.png" alt="Clasp-it logo" />Clasp-it</div>
-    <a href="https://chrome.google.com/webstore" class="btn btn-primary">Add to Chrome</a>
+    <a href="#hero-email" class="btn btn-primary" onclick="document.getElementById('hero-email').focus();return false;">Join beta</a>
   </nav>
 
   <!-- Hero -->
@@ -636,10 +668,11 @@
     <h1>Pick any element.<br /><em>Fix it with Claude.</em></h1>
     <p>Click any element on any webpage. Clasp-it captures the HTML, CSS, and context — Claude Code reads it and makes the edit.</p>
     <div class="hero-actions">
-      <a href="https://chrome.google.com/webstore" class="btn btn-primary">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v6M5 8h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        Add to Chrome — it's free
-      </a>
+      <div id="hero-signup-form" class="hero-signup">
+        <input type="email" id="hero-email" placeholder="your@email.com" autocomplete="email" />
+        <button class="btn btn-primary" id="hero-signup-btn">Join beta — it's free</button>
+      </div>
+      <p class="hero-signup-success" id="hero-signup-success">Check your email — your API key and download link are on their way.</p>
       <button class="btn btn-ghost" onclick="openDemo()">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 4.5L10 7L5.5 9.5V4.5Z" fill="currentColor"/></svg>
         See demo
@@ -808,6 +841,48 @@
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeDemo();
     });
+
+    (function () {
+      const form = document.getElementById("hero-signup-form");
+      const btn = document.getElementById("hero-signup-btn");
+      const input = document.getElementById("hero-email");
+      const success = document.getElementById("hero-signup-success");
+
+      async function submit() {
+        const email = input.value.trim();
+        if (!email || !email.includes("@")) {
+          input.classList.add("error");
+          input.focus();
+          setTimeout(() => input.classList.remove("error"), 1800);
+          return;
+        }
+        btn.disabled = true;
+        btn.textContent = "Sending…";
+        try {
+          const res = await fetch("/beta/signup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            form.style.display = "none";
+            success.style.display = "";
+          } else {
+            btn.disabled = false;
+            btn.textContent = "Join beta — it's free";
+            input.classList.add("error");
+            setTimeout(() => input.classList.remove("error"), 1800);
+          }
+        } catch {
+          btn.disabled = false;
+          btn.textContent = "Join beta — it's free";
+        }
+      }
+
+      btn.addEventListener("click", submit);
+      input.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+    })();
   </script>
 
 </body>
