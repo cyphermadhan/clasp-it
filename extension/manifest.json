@@ -17,7 +17,6 @@
   "optional_permissions": [],
 
   "host_permissions": [
-    "https://api.clasp-it.com/*",
     "https://claspit.dev/*",
     "<all_urls>"
   ],

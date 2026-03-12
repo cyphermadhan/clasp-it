@@ -12,6 +12,7 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         verified: resolve(__dirname, 'verified.html'),
         upgrade: resolve(__dirname, 'upgrade.html'),
+        privacy: resolve(__dirname, 'privacy.html'),
       },
     },
   },
