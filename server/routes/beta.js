@@ -57,8 +57,11 @@ async function sendAlreadySignedUpEmail(email) {
     <tr><td align="center">
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;border:1px solid rgba(31,30,29,0.1);overflow:hidden;">
         <tr><td style="background:#c6613f;padding:24px 32px;">
-          <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">Clasp-it</p>
-          <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.8);">Pick any element. Fix it with Claude.</p>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+            <img src="https://claspit.dev/icon.png" alt="Clasp-it" width="32" height="32" style="border-radius:7px;display:block;" />
+            <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">Clasp-it</p>
+          </div>
+          <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.8);">Pick any element. Fix it with Claude.</p>
         </td></tr>
         <tr><td style="padding:32px;">
           <p style="margin:0 0 12px;font-size:16px;font-weight:600;color:#141413;">You're already signed up!</p>
@@ -107,8 +110,11 @@ async function sendWelcomeEmail(email, apiKey) {
 
         <!-- Header -->
         <tr><td style="background:#c6613f;padding:24px 32px;">
-          <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">Clasp-it</p>
-          <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.8);">Pick any element. Fix it with Claude.</p>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+            <img src="https://claspit.dev/icon.png" alt="Clasp-it" width="32" height="32" style="border-radius:7px;display:block;" />
+            <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">Clasp-it</p>
+          </div>
+          <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.8);">Pick any element. Fix it with Claude.</p>
         </td></tr>
 
         <!-- Intro -->

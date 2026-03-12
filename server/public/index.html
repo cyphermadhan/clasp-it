@@ -868,7 +868,7 @@
           const data = await res.json();
           if (data.success) {
             form.style.display = "none";
-            success.style.display = "";
+            success.style.display = "block";
           } else {
             btn.disabled = false;
             btn.textContent = "Join beta — it's free";
