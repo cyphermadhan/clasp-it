@@ -396,6 +396,19 @@ router.post('/webhook', async (req, res) => {
     const productId = data.product_id ?? data.items?.[0]?.product_id;
 
     switch (event.type) {
+      // Subscription created and active (monthly/annual)
+      case 'subscription.active': {
+        const email = data.customer?.email ?? null;
+        await pool.query(
+          `UPDATE users SET plan = 'pro', dodo_customer_id = $1
+           WHERE dodo_customer_id = $1 OR (dodo_customer_id IS NULL AND email = $2)`,
+          [customerId, email],
+        );
+        console.log(`[auth] Pro activated via subscription for ${email}`);
+        break;
+      }
+
+      // One-time payment fallback (keep for safety)
       case 'payment.succeeded': {
         const plan = productIdToPlan(productId) ?? 'pro';
         const email = data.customer?.email ?? null;
@@ -404,7 +417,20 @@ router.post('/webhook', async (req, res) => {
            WHERE dodo_customer_id = $2 OR (dodo_customer_id IS NULL AND email = $3)`,
           [plan, customerId, email],
         );
-        console.log(`[auth] Pro activated via one-time payment for ${email}`);
+        console.log(`[auth] Pro activated via payment for ${email}`);
+        break;
+      }
+
+      // Subscription cancelled or expired — downgrade to free
+      case 'subscription.cancelled':
+      case 'subscription.expired': {
+        const email = data.customer?.email ?? null;
+        await pool.query(
+          `UPDATE users SET plan = 'free'
+           WHERE dodo_customer_id = $1 OR (dodo_customer_id IS NULL AND email = $2)`,
+          [customerId, email],
+        );
+        console.log(`[auth] Plan downgraded to free for Dodo customer ${customerId}`);
         break;
       }
 
