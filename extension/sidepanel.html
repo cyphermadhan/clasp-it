@@ -826,6 +826,7 @@
         <button class="sp-mcp-tab active" data-tab="claude">Claude Code</button>
         <button class="sp-mcp-tab" data-tab="cursor">Cursor</button>
         <button class="sp-mcp-tab" data-tab="windsurf">Windsurf</button>
+        <button class="sp-mcp-tab" data-tab="other">Other</button>
       </div>
 
       <!-- Claude Code -->
@@ -866,6 +867,16 @@
   }
 }</div>
         <p class="sp-mcp-step">2. Restart Windsurf and use <em>Cascade</em> to access your picks.</p>
+      </div>
+
+      <!-- Other -->
+      <div class="sp-mcp-tab-panel" id="sp-mcp-tab-other">
+        <p class="sp-mcp-hint">Any MCP-compatible tool can connect using these details:</p>
+        <p class="sp-mcp-step">Endpoint URL (click to copy):</p>
+        <div class="sp-mcp-code" data-template="https://claspit.dev/mcp" title="Click to copy">https://claspit.dev/mcp</div>
+        <p class="sp-mcp-step">Auth header (click to copy):</p>
+        <div class="sp-mcp-code" id="sp-mcp-other-header" data-template="Authorization: Bearer YOUR_KEY" title="Click to copy">Authorization: Bearer YOUR_KEY</div>
+        <p class="sp-mcp-step">Transport: <em>Streamable HTTP</em></p>
       </div>
     </div>
   </div>

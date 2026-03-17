@@ -848,6 +848,8 @@ function renderSettings() {
     if (cursorCfg) cursorCfg.textContent = cursorCfg.textContent.replace("YOUR_KEY", masked);
     const windsurfCfg = document.getElementById("sp-mcp-windsurf-cfg");
     if (windsurfCfg) windsurfCfg.textContent = windsurfCfg.textContent.replace("YOUR_KEY", masked);
+    const otherHeader = document.getElementById("sp-mcp-other-header");
+    if (otherHeader) otherHeader.textContent = otherHeader.textContent.replace("YOUR_KEY", masked);
   }
 }
 
