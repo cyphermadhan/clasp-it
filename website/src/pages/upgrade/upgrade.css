@@ -47,49 +47,6 @@ h1 {
   line-height: 1.5;
 }
 
-.billing-toggle {
-  display: flex;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 3px;
-  margin-bottom: 24px;
-  gap: 3px;
-}
-
-.billing-btn {
-  flex: 1;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 6px;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  background: transparent;
-  color: var(--text-secondary);
-  transition: all 0.15s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.billing-btn.active {
-  background: var(--bg-card);
-  color: var(--text);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-}
-
-.save-badge {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--accent);
-  background: rgba(198, 97, 63, 0.1);
-  padding: 1px 6px;
-  border-radius: 99px;
-}
-
 .price {
   font-size: 48px;
   font-weight: 700;

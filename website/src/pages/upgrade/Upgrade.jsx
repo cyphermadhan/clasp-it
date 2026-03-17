@@ -5,7 +5,6 @@ export default function Upgrade() {
   const [email, setEmail] = useState(() => {
     return new URLSearchParams(window.location.search).get('e') || '';
   });
-  const [billing, setBilling] = useState('monthly');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -21,7 +20,7 @@ export default function Upgrade() {
       const res = await fetch('/billing/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, plan: 'pro', billing }),
+        body: JSON.stringify({ email, plan: 'pro' }),
       });
       const data = await res.json();
       if (data.url) {
@@ -36,8 +35,6 @@ export default function Upgrade() {
     }
   };
 
-  const isAnnual = billing === 'annual';
-
   return (
     <>
       <a href="/" className="nav-logo">
@@ -46,29 +43,11 @@ export default function Upgrade() {
       </a>
       <div className="card">
         <h1>Upgrade to Pro</h1>
-        <p className="subtitle">Unlimited picks + full context capture.</p>
-
-        <div className="billing-toggle">
-          <button
-            className={`billing-btn${!isAnnual ? ' active' : ''}`}
-            onClick={() => setBilling('monthly')}
-          >
-            Monthly
-          </button>
-          <button
-            className={`billing-btn${isAnnual ? ' active' : ''}`}
-            onClick={() => setBilling('annual')}
-          >
-            Annual <span className="save-badge">Save 33%</span>
-          </button>
-        </div>
-
+        <p className="subtitle">Unlimited picks + full context capture. Choose monthly or annual at checkout.</p>
         <div className="price">
-          {isAnnual ? '$24' : '$2.99'}
-          <span>{isAnnual ? '/yr' : '/mo'}</span>
+          $2.99 <span>/mo</span>
         </div>
-        {isAnnual && <p className="price-note">billed annually · $2/mo</p>}
-
+        <p className="price-note">or $24/yr — save 33%</p>
         <ul className="features">
           <li>Unlimited picks per day</li>
           <li>Screenshot capture</li>
@@ -89,7 +68,7 @@ export default function Upgrade() {
           onClick={handleUpgrade}
           disabled={loading}
         >
-          {loading ? 'Redirecting to checkout…' : `Get Pro — ${isAnnual ? '$24/yr' : '$2.99/mo'}`}
+          {loading ? 'Redirecting to checkout…' : 'Get Pro'}
         </button>
         {error && <div className="error-msg">{error}</div>}
         <p className="back">← <a href="/">Back to home</a></p>

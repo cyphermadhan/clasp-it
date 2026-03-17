@@ -424,11 +424,8 @@ router.post('/webhook', async (req, res) => {
 // ─── POST /billing/checkout ───────────────────────────────────────────────────
 
 router.post('/checkout', async (req, res) => {
-  const billingCycle = req.body?.billing === 'annual' ? 'annual' : 'monthly';
-  const productId = billingCycle === 'annual'
-    ? process.env.DODO_PRODUCT_PRO_ANNUAL
-    : process.env.DODO_PRODUCT_PRO_MONTHLY;
-  if (!productId) {
+  const collectionId = process.env.DODO_COLLECTION_PRO;
+  if (!collectionId) {
     return res.status(503).json({ error: 'Pro product not configured' });
   }
 
@@ -483,7 +480,8 @@ router.post('/checkout', async (req, res) => {
       : { email: userEmail, name: userEmail.split('@')[0] ?? 'User', create_new_customer: false };
 
     const session = await dodo.checkoutSessions.create({
-      product_cart: [{ product_id: productId, quantity: 1 }],
+      product_collection_id: collectionId,
+      product_cart: [],
       customer,
       return_url: `${appUrl}/verified?checkout=success`,
     });
