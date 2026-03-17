@@ -421,16 +421,42 @@ router.post('/webhook', async (req, res) => {
         break;
       }
 
-      // Subscription cancelled or expired — downgrade to free
+      // Subscription renewed — keep pro active
+      case 'subscription.renewed': {
+        const email = data.customer?.email ?? null;
+        await pool.query(
+          `UPDATE users SET plan = 'pro', dodo_customer_id = $1
+           WHERE dodo_customer_id = $1 OR (dodo_customer_id IS NULL AND email = $2)`,
+          [customerId, email],
+        );
+        console.log(`[auth] Pro renewed for Dodo customer ${customerId}`);
+        break;
+      }
+
+      // Plan changed (e.g. monthly ↔ annual) — keep pro
+      case 'subscription.plan_changed': {
+        const email = data.customer?.email ?? null;
+        await pool.query(
+          `UPDATE users SET plan = 'pro', dodo_customer_id = $1
+           WHERE dodo_customer_id = $1 OR (dodo_customer_id IS NULL AND email = $2)`,
+          [customerId, email],
+        );
+        console.log(`[auth] Plan changed, kept Pro for Dodo customer ${customerId}`);
+        break;
+      }
+
+      // Subscription ended — downgrade to free
       case 'subscription.cancelled':
-      case 'subscription.expired': {
+      case 'subscription.expired':
+      case 'subscription.failed':
+      case 'subscription.on_hold': {
         const email = data.customer?.email ?? null;
         await pool.query(
           `UPDATE users SET plan = 'free'
            WHERE dodo_customer_id = $1 OR (dodo_customer_id IS NULL AND email = $2)`,
           [customerId, email],
         );
-        console.log(`[auth] Plan downgraded to free for Dodo customer ${customerId}`);
+        console.log(`[auth] Plan downgraded to free on ${event.type} for Dodo customer ${customerId}`);
         break;
       }
 
