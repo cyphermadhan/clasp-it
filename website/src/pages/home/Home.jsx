@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import observe from '../../analytics.js';
 
+
 export default function Home() {
   const [demoOpen, setDemoOpen] = useState(false);
   const [email, setEmail] = useState('');
