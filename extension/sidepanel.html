@@ -535,9 +535,26 @@
       background: var(--bg-secondary); padding: 8px 10px;
       border-radius: var(--radius-sm); border: 0.5px solid var(--border-faint);
       cursor: pointer; word-break: break-all; line-height: 1.6;
-      transition: border-color 0.15s;
+      transition: border-color 0.15s; white-space: pre-wrap;
     }
     .sp-mcp-code:hover { border-color: var(--border-medium); }
+    .sp-mcp-tabs {
+      display: flex; gap: 4px;
+      background: var(--bg-secondary); border-radius: var(--radius-sm);
+      padding: 3px;
+    }
+    .sp-mcp-tab {
+      flex: 1; padding: 5px 4px; border: none; border-radius: 4px;
+      font-family: var(--font-sans); font-size: 10px; font-weight: 500;
+      cursor: pointer; background: transparent; color: var(--text-tertiary);
+      transition: all 0.1s;
+    }
+    .sp-mcp-tab.active {
+      background: var(--bg-primary); color: var(--text-primary);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    }
+    .sp-mcp-tab-panel { display: none; flex-direction: column; gap: 8px; }
+    .sp-mcp-tab-panel.active { display: flex; }
 
   </style>
 </head>
@@ -804,13 +821,52 @@
       <svg id="sp-mcp-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;transition:transform 0.2s"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
     <div class="sp-mcp-body" id="sp-mcp-body">
-      <p class="sp-mcp-hint">Add Clasp-it as an MCP server in Claude Code so it can read your picks. The MCP key and extension key must be the same.</p>
-      <p class="sp-mcp-step">1. Run in terminal (click to copy with your key):</p>
-      <div class="sp-mcp-code" id="sp-mcp-cmd" title="Click to copy">claude mcp add --scope user --transport http clasp-it https://claspit.dev/mcp --header "Authorization: Bearer YOUR_KEY"</div>
-      <p class="sp-mcp-step">2. Restart Claude Code, then say: <em>"fix all recent picks using clasp-it"</em></p>
-      <p class="sp-mcp-step" style="margin-top:4px;padding-top:8px;border-top:0.5px solid var(--border-faint)">To update the key later:</p>
-      <div class="sp-mcp-code" title="Click to copy" onclick="navigator.clipboard.writeText('claude mcp remove clasp')">claude mcp remove clasp</div>
-      <p class="sp-mcp-step">Then re-run step 1 with the new key.</p>
+      <p class="sp-mcp-hint">Add Clasp-it as an MCP server so your editor can read your picks. Use the same API key as the extension.</p>
+      <div class="sp-mcp-tabs">
+        <button class="sp-mcp-tab active" data-tab="claude">Claude Code</button>
+        <button class="sp-mcp-tab" data-tab="cursor">Cursor</button>
+        <button class="sp-mcp-tab" data-tab="windsurf">Windsurf</button>
+      </div>
+
+      <!-- Claude Code -->
+      <div class="sp-mcp-tab-panel active" id="sp-mcp-tab-claude">
+        <p class="sp-mcp-step">1. Run in terminal (click to copy):</p>
+        <div class="sp-mcp-code" id="sp-mcp-cmd" data-template='claude mcp add --scope user --transport http clasp-it https://claspit.dev/mcp --header "Authorization: Bearer YOUR_KEY"' title="Click to copy">claude mcp add --scope user --transport http clasp-it https://claspit.dev/mcp --header "Authorization: Bearer YOUR_KEY"</div>
+        <p class="sp-mcp-step">2. Restart Claude Code, then say: <em>"fix all recent picks using clasp-it"</em></p>
+        <p class="sp-mcp-step" style="margin-top:4px;padding-top:8px;border-top:0.5px solid var(--border-faint)">To update the key: run <code>claude mcp remove clasp-it</code> then re-run step 1.</p>
+      </div>
+
+      <!-- Cursor -->
+      <div class="sp-mcp-tab-panel" id="sp-mcp-tab-cursor">
+        <p class="sp-mcp-step">1. Add to <code>~/.cursor/mcp.json</code> (click to copy):</p>
+        <div class="sp-mcp-code" id="sp-mcp-cursor-cfg" data-template='{"mcpServers":{"clasp-it":{"url":"https://claspit.dev/mcp","headers":{"Authorization":"Bearer YOUR_KEY"}}}}' title="Click to copy">{
+  "mcpServers": {
+    "clasp-it": {
+      "url": "https://claspit.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_KEY"
+      }
+    }
+  }
+}</div>
+        <p class="sp-mcp-step">2. Restart Cursor and use <em>Agent mode</em> to access your picks.</p>
+      </div>
+
+      <!-- Windsurf -->
+      <div class="sp-mcp-tab-panel" id="sp-mcp-tab-windsurf">
+        <p class="sp-mcp-step">1. Add to <code>~/.codeium/windsurf/mcp_config.json</code> (click to copy):</p>
+        <div class="sp-mcp-code" id="sp-mcp-windsurf-cfg" data-template='{"mcpServers":{"clasp-it":{"serverUrl":"https://claspit.dev/mcp","headers":{"Authorization":"Bearer YOUR_KEY"}}}}' title="Click to copy">{
+  "mcpServers": {
+    "clasp-it": {
+      "serverUrl": "https://claspit.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_KEY"
+      }
+    }
+  }
+}</div>
+        <p class="sp-mcp-step">2. Restart Windsurf and use <em>Cascade</em> to access your picks.</p>
+      </div>
     </div>
   </div>
 

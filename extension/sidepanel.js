@@ -839,11 +839,15 @@ function renderSettings() {
     chip.textContent = "—";
   }
 
-  // Show masked key in MCP command; copy always uses the real key
-  const mcpCmd = document.getElementById("sp-mcp-cmd");
-  if (mcpCmd && app.apiKey) {
+  // Show masked key in all MCP config blocks
+  if (app.apiKey) {
     const masked = app.apiKey.slice(0, 6) + "••••••••••••";
-    mcpCmd.textContent = MCP_CMD_TEMPLATE.replace("YOUR_KEY", masked);
+    const mcpCmd = document.getElementById("sp-mcp-cmd");
+    if (mcpCmd) mcpCmd.textContent = MCP_CMD_TEMPLATE.replace("YOUR_KEY", masked);
+    const cursorCfg = document.getElementById("sp-mcp-cursor-cfg");
+    if (cursorCfg) cursorCfg.textContent = cursorCfg.textContent.replace("YOUR_KEY", masked);
+    const windsurfCfg = document.getElementById("sp-mcp-windsurf-cfg");
+    if (windsurfCfg) windsurfCfg.textContent = windsurfCfg.textContent.replace("YOUR_KEY", masked);
   }
 }
 
@@ -856,15 +860,27 @@ document.getElementById("sp-mcp-toggle").addEventListener("click", () => {
   chevron.style.transform = open ? "rotate(180deg)" : "";
 });
 
-document.getElementById("sp-mcp-cmd").addEventListener("click", function () {
-  const fullCmd = app.apiKey
-    ? MCP_CMD_TEMPLATE.replace("YOUR_KEY", app.apiKey)
-    : this.textContent;
-  navigator.clipboard.writeText(fullCmd).then(() => {
-    const orig = this.textContent;
-    this.textContent = "Copied!";
-    setTimeout(() => { this.textContent = orig; }, 1500);
-  }).catch(() => {});
+// MCP editor tabs
+document.querySelectorAll(".sp-mcp-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".sp-mcp-tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".sp-mcp-tab-panel").forEach(p => p.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById(`sp-mcp-tab-${tab.dataset.tab}`)?.classList.add("active");
+  });
+});
+
+// Click-to-copy for all MCP code blocks
+document.querySelectorAll(".sp-mcp-code").forEach(el => {
+  el.addEventListener("click", function () {
+    const template = this.dataset.template || this.textContent;
+    const text = app.apiKey ? template.replace("YOUR_KEY", app.apiKey) : template;
+    navigator.clipboard.writeText(text).then(() => {
+      const orig = this.textContent;
+      this.textContent = "Copied!";
+      setTimeout(() => { this.textContent = orig; }, 1500);
+    }).catch(() => {});
+  });
 });
 
 // ── Cleanup on panel close ────────────────────────────────────────────────────
