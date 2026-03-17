@@ -115,7 +115,7 @@ async function sendWelcomeEmail(email, apiKey) {
         <tr><td style="padding:32px 32px 0;">
           <p style="margin:0 0 12px;font-size:16px;font-weight:600;color:#141413;">Welcome to the beta!</p>
           <p style="margin:0;font-size:14px;color:#73726c;line-height:1.6;">
-            Thanks for joining. Clasp-it is a Chrome extension that lets you click any element on any webpage and send its full context — HTML, CSS, React props, console logs, and a screenshot — directly to Claude Code via MCP. No more copy-pasting. No more describing what you see. Just click and tell Claude what to change.
+            Thanks for joining. Clasp-it is a Chrome extension that lets you click any element on any webpage and send its full context — HTML, CSS, React props, console logs, and a screenshot — directly to your AI editor via MCP. No more copy-pasting. No more describing what you see. Just click and tell your editor what to change.
           </p>
         </td></tr>
 
@@ -149,14 +149,14 @@ async function sendWelcomeEmail(email, apiKey) {
 
         <!-- Step 2 -->
         <tr><td style="padding:24px 32px 0;">
-          <p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#141413;">Step 2 — Connect Claude Code (run once)</p>
+          <p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#141413;">Step 2 — Connect your AI editor (run once)</p>
           <p style="margin:0 0 12px;font-size:14px;color:#73726c;line-height:1.6;">
-            This command adds Clasp-it as an MCP server so Claude Code can read your picks. Run it once in your terminal — your API key is already filled in:
+            This command adds Clasp-it as an MCP server so your AI editor can read your picks. Run it once in your terminal — your API key is already filled in:
           </p>
           <div style="background:#f5f4ed;border:1px solid rgba(31,30,29,0.12);border-radius:8px;padding:14px 16px;overflow:hidden;">
             <p style="margin:0;font-family:'SF Mono',Consolas,monospace;font-size:11px;color:#141413;word-break:break-all;line-height:1.6;">${mcpCmd}</p>
           </div>
-          <p style="margin:8px 0 0;font-size:12px;color:#73726c;">After running this, restart Claude Code.</p>
+          <p style="margin:8px 0 0;font-size:12px;color:#73726c;">After running this, restart your editor. Setup instructions for Cursor and Windsurf are in the extension settings.</p>
         </td></tr>
 
         <!-- Step 3 -->
@@ -167,7 +167,7 @@ async function sendWelcomeEmail(email, apiKey) {
             <li>Click the Clasp-it icon in your toolbar → click <strong style="color:#141413;">Pick Element</strong></li>
             <li>Click any element on the page</li>
             <li>Type your instruction and hit Send</li>
-            <li>Switch to Claude Code and say: <strong style="color:#141413;">"fix all recent picks using clasp-it"</strong></li>
+            <li>Switch to your AI editor and say: <strong style="color:#141413;">"fix all recent picks using clasp-it"</strong></li>
           </ol>
         </td></tr>
 

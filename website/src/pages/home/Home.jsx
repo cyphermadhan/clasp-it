@@ -88,8 +88,8 @@ export default function Home() {
           </svg>
           Chrome Extension + MCP Server
         </div>
-        <h1>Pick any element.<br /><em>Fix it with Claude.</em></h1>
-        <p>Click any element on any webpage. Clasp-it captures the HTML, CSS, and context — Claude Code reads it and makes the edit.</p>
+        <h1>Pick any element.<br /><em>Fix it with AI.</em></h1>
+        <p>Click any element on any webpage. Clasp-it captures the HTML, CSS, and context — your AI editor reads it and makes the edit.</p>
         <div className="hero-actions">
           {signupState === 'success' ? (
             <p className="hero-signup-success">Thanks! Check your email — your API key and download link are on their way.</p>
@@ -175,8 +175,8 @@ export default function Home() {
               </svg>
             </div>
             <div className="step-num">3</div>
-            <h3>Claude fixes it</h3>
-            <p>Switch to Claude Code and say "fix my recent picks". It reads the context and edits your code.</p>
+            <h3>Your editor fixes it</h3>
+            <p>Switch to your AI editor and say "fix my recent picks". It reads the context and edits your code.</p>
           </div>
         </div>
       </section>
@@ -196,18 +196,15 @@ export default function Home() {
           <div className="setup-step">
             <div className="setup-step-num">2</div>
             <div className="setup-step-body">
-              <h4>Connect to Claude Code</h4>
-              <p>Run once in your terminal — your API key is shown in the extension settings.</p>
-              <p style={{ marginTop: 8 }}>
-                <code>claude mcp add --scope user --transport http clasp-it https://claspit.dev/mcp --header "Authorization: Bearer YOUR_KEY"</code>
-              </p>
+              <h4>Connect your AI editor</h4>
+              <p>Add Clasp-it as an MCP server — setup instructions are in the extension settings for Claude Code, Cursor, and Windsurf.</p>
             </div>
           </div>
           <div className="setup-step">
             <div className="setup-step-num">3</div>
             <div className="setup-step-body">
               <h4>Start picking</h4>
-              <p>Click any element, type your instruction, hit send. Then tell Claude Code: <em>"fix all recent picks using clasp-it"</em>.</p>
+              <p>Click any element, type your instruction, hit send. Then tell your editor: <em>"fix all recent picks using clasp-it"</em>.</p>
             </div>
           </div>
         </div>

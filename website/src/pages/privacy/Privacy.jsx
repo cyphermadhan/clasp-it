@@ -12,7 +12,7 @@ export default function Privacy() {
         <section>
           <h2>What we collect</h2>
           <p>When you sign up, we collect your <strong>email address</strong> to create your account and send you a magic link for authentication.</p>
-          <p>When you use the extension to pick an element, we collect the <strong>element context</strong> you explicitly capture — HTML, CSS selector, computed styles, and optionally a screenshot, console logs, network requests, and React props (Pro plan). This data is sent to our server so Claude Code can read it via MCP.</p>
+          <p>When you use the extension to pick an element, we collect the <strong>element context</strong> you explicitly capture — HTML, CSS selector, computed styles, and optionally a screenshot, console logs, network requests, and React props (Pro plan). This data is sent to our server so your AI editor can read it via MCP.</p>
           <p>Your <strong>API key</strong> is stored locally in your browser (chrome.storage.local) and transmitted to our server to authenticate requests.</p>
         </section>
 

@@ -1,14 +1,14 @@
 # Clasp-it — Setup Guide
 
-> **Ask me anything about Clasp-it.** Drop this file into your project and ask Claude, ChatGPT, or any LLM: _"How do I use Clasp-it?"_ or _"Why isn't my MCP connection working?"_ — they'll have everything they need to help you.
+> **Ask me anything about Clasp-it.** Drop this file into your project and ask your AI editor: _"How do I use Clasp-it?"_ or _"Why isn't my MCP connection working?"_ — they'll have everything they need to help you.
 
 ---
 
 ## What is Clasp-it?
 
-Clasp-it is a Chrome extension + hosted MCP server that bridges your browser and Claude Code.
+Clasp-it is a Chrome extension + hosted MCP server that bridges your browser and your AI editor (Claude Code, Cursor, Windsurf, or any MCP-compatible tool).
 
-You click any element on any webpage. Clasp-it captures everything Claude needs to make the right edit:
+You click any element on any webpage. Clasp-it captures everything your editor needs to make the right change:
 - Full HTML and CSS selector
 - Computed styles
 - React component props (if detected)
@@ -16,16 +16,14 @@ You click any element on any webpage. Clasp-it captures everything Claude needs 
 - Network requests
 - A screenshot of the element
 
-All of that gets sent to Claude Code via MCP in one click. No copy-pasting. No describing what you see. Just click the element, type your instruction, and switch to Claude Code.
-
-**The Cursor comparison:** Cursor lets you click any element in the preview and jump to the code. Claude Code doesn't have that natively. Clasp-it fills that gap.
+All of that gets sent to your AI editor via MCP in one click. No copy-pasting. No describing what you see. Just click the element, type your instruction, and switch to your editor.
 
 ---
 
 ## Prerequisites
 
 - Google Chrome (or any Chromium browser)
-- Claude Code CLI installed and working
+- An MCP-compatible AI editor (Claude Code, Cursor, Windsurf, or similar)
 - A Clasp-it API key (from your welcome email or [claspit.dev](https://claspit.dev))
 
 ---
@@ -49,16 +47,45 @@ Since Clasp-it is currently in beta, it is not yet on the Chrome Web Store. You 
 2. Enter your email and follow the magic link, **or** paste your API key directly if you have it
 3. Your API key is in your welcome email — it starts with `cit_`
 
-### Step 3 — Connect Claude Code via MCP
+### Step 3 — Connect your AI editor via MCP
 
-Run this command once in your terminal (replace `YOUR_API_KEY` with your actual key):
+Open the extension sidebar → Settings (gear icon) → **MCP server setup**. Select your editor for the exact setup command.
 
+**Claude Code** — run once in your terminal:
 ```bash
 claude mcp add --scope user --transport http clasp-it https://claspit.dev/mcp --header "Authorization: Bearer YOUR_API_KEY"
 ```
 
-- `--scope user` means it's available across all your projects
-- Restart Claude Code after running this command
+**Cursor** — add to `~/.cursor/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "clasp-it": {
+      "url": "https://claspit.dev/mcp",
+      "headers": { "Authorization": "Bearer YOUR_API_KEY" }
+    }
+  }
+}
+```
+
+**Windsurf** — add to `~/.codeium/windsurf/mcp_config.json`:
+```json
+{
+  "mcpServers": {
+    "clasp-it": {
+      "serverUrl": "https://claspit.dev/mcp",
+      "headers": { "Authorization": "Bearer YOUR_API_KEY" }
+    }
+  }
+}
+```
+
+**Any other MCP-compatible editor:**
+- Endpoint: `https://claspit.dev/mcp`
+- Transport: Streamable HTTP
+- Auth header: `Authorization: Bearer YOUR_API_KEY`
+
+Restart your editor after making changes.
 
 To verify it's connected:
 ```bash
@@ -80,10 +107,10 @@ Expected response: `{"email":"you@example.com","plan":"free"}`
 6. A floating prompt dialog appears next to the element
 7. Type your instruction (e.g. _"make this button larger"_, _"fix the spacing"_, _"change to primary style"_)
 8. Press **Enter** or click the send button
-9. Switch to Claude Code
+9. Switch to your AI editor
 10. Say: **"fix all recent picks using clasp-it"** or **"fix the element I just picked"**
 
-### What Claude Code receives
+### What your editor receives
 
 Each pick contains:
 ```json
@@ -103,7 +130,7 @@ Each pick contains:
 
 Pro users also get: `screenshot`, `consoleLogs`, `networkRequests`, `reactProps`.
 
-### MCP tools available to Claude Code
+### MCP tools available
 
 | Tool | What it does |
 |------|-------------|
@@ -113,7 +140,7 @@ Pro users also get: `screenshot`, `consoleLogs`, `networkRequests`, `reactProps`
 | `update_pick_status` | Marks a pick as not_started / in_progress / completed |
 | `clear_context` | Clears all your picks |
 
-### Useful Claude Code prompts
+### Useful prompts
 
 - _"Fix all my recent clasp-it picks"_
 - _"Fix the element I just picked"_
@@ -132,7 +159,7 @@ Pro users also get: `screenshot`, `consoleLogs`, `networkRequests`, `reactProps`
 | Console logs | — | ✅ |
 | Network requests | — | ✅ |
 | React props | — | ✅ |
-| Price | Free | $19 one-time |
+| Price | Free | $2.99/mo or $24/yr |
 
 Upgrade at [claspit.dev/upgrade](https://claspit.dev/upgrade).
 
@@ -145,15 +172,11 @@ Upgrade at [claspit.dev/upgrade](https://claspit.dev/upgrade).
 - Make sure there are no leading or trailing spaces
 - Try signing out (gear icon → Sign out) and re-entering the key
 
-### MCP not responding in Claude Code
+### MCP not responding in your editor
 1. Test your key: `curl https://claspit.dev/auth/info -H "Authorization: Bearer YOUR_KEY"`
 2. If you get `{"error":"Invalid API key"}` — re-authenticate in the extension
-3. If you get `{"error":"Missing X-API-Key or Authorization header"}` — the MCP command wasn't set up correctly. Remove and re-add:
-   ```bash
-   claude mcp remove clasp-it
-   claude mcp add --scope user --transport http clasp-it https://claspit.dev/mcp --header "Authorization: Bearer YOUR_KEY"
-   ```
-4. Restart Claude Code after making changes
+3. If you get `{"error":"Missing X-API-Key or Authorization header"}` — the MCP command wasn't set up correctly. Remove and re-add using the setup instructions in the extension settings.
+4. Restart your editor after making changes
 
 ### Extension not capturing elements on a page
 - Refresh the page first — the content script sometimes needs a fresh injection
@@ -178,14 +201,13 @@ Yes. `list_recent_picks` returns picks from all sessions. You can filter by `pag
 **Is my data stored on your servers?**
 Pick context (HTML, CSS, your prompt) is stored in Redis with a 24-hour TTL, then deleted automatically. Screenshots are never stored server-side — they are captured, sent in the POST request, and discarded.
 
-**How do I update my API key in Claude Code?**
+**How do I update my API key?**
+Remove the existing MCP server config and re-add it with the new key. For Claude Code:
 ```bash
 claude mcp remove clasp-it
 claude mcp add --scope user --transport http clasp-it https://claspit.dev/mcp --header "Authorization: Bearer NEW_KEY"
 ```
-
-**Does this work with VS Code + Claude Code extension?**
-Yes — MCP servers added with `--scope user` are shared across all Claude Code instances regardless of how you run it.
+For Cursor/Windsurf, update the key in the respective JSON config file and restart the editor.
 
 **Can I use the extension on localhost?**
 Yes — Clasp-it works on any page Chrome can load, including `http://localhost:3000`.

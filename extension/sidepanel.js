@@ -386,7 +386,7 @@ async function handleSend() {
   sendBtn.disabled = false;
 
   if (result.pickId) {
-    setStatus("Sent to Claude Code!", "ok");
+    setStatus("Pick sent!", "ok");
     await addHistoryItem({
       id:           crypto.randomUUID(),
       pickId:       result.pickId,
