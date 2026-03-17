@@ -424,7 +424,10 @@ router.post('/webhook', async (req, res) => {
 // ─── POST /billing/checkout ───────────────────────────────────────────────────
 
 router.post('/checkout', async (req, res) => {
-  const productId = process.env.DODO_PRODUCT_PRO;
+  const billingCycle = req.body?.billing === 'annual' ? 'annual' : 'monthly';
+  const productId = billingCycle === 'annual'
+    ? process.env.DODO_PRODUCT_PRO_ANNUAL
+    : process.env.DODO_PRODUCT_PRO_MONTHLY;
   if (!productId) {
     return res.status(503).json({ error: 'Pro product not configured' });
   }
@@ -526,7 +529,10 @@ router.get('/portal', requireSession, async (req, res) => {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function productIdToPlan(productId) {
-  if (productId === process.env.DODO_PRODUCT_PRO) return 'pro';
+  if (
+    productId === process.env.DODO_PRODUCT_PRO_MONTHLY ||
+    productId === process.env.DODO_PRODUCT_PRO_ANNUAL
+  ) return 'pro';
   return null;
 }
 

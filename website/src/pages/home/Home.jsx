@@ -216,7 +216,7 @@ export default function Home() {
       {/* Pricing */}
       <section className="pricing">
         <h2>Simple pricing</h2>
-        <p>Free to start. Pay once, own it forever.</p>
+        <p>Free to start. Cancel anytime.</p>
         <div className="pricing-grid">
           <div className="plan">
             <p className="plan-name">Free</p>
@@ -237,9 +237,9 @@ export default function Home() {
           <div className="plan pro">
             <div className="plan-badge">✦ Most popular</div>
             <p className="plan-name">Pro</p>
-            <p className="plan-price">$19 <span>one-time</span></p>
-            <p className="plan-desc">Pay once. Unlimited picks + full context capture, forever.</p>
-            <a href="/upgrade" id="pro-cta" className="plan-cta plan-cta-pro" onClick={() => observe.track('upgrade_cta_clicked')}>Get Pro — $19</a>
+            <p className="plan-price">$2.99 <span>/mo</span></p>
+            <p className="plan-desc">Unlimited picks + full context capture. Or save 33% at $24/yr.</p>
+            <a href="/upgrade" id="pro-cta" className="plan-cta plan-cta-pro" onClick={() => observe.track('upgrade_cta_clicked')}>Get Pro — $2.99/mo</a>
             <hr className="plan-divider" />
             <ul className="plan-features">
               <li>Everything in Free</li>

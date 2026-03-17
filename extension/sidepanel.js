@@ -544,7 +544,7 @@ async function startCheckout() {
         "Content-Type": "application/json",
         ...(app.apiKey ? { "Authorization": `Bearer ${app.apiKey}` } : {}),
       },
-      body: JSON.stringify({ plan: "pro" }),
+      body: JSON.stringify({ plan: "pro", billing: "monthly" }),
     });
     const data = await res.json();
     if (data.url) {
