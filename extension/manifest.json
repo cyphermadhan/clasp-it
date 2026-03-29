@@ -1,15 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Clasp-it",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Pick any webpage element and send its context to your AI editor via MCP",
 
   "permissions": [
     "activeTab",
     "scripting",
     "storage",
-    "tabs",
-    "webNavigation",
     "webRequest",
     "sidePanel"
   ],
