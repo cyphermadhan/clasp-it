@@ -15,7 +15,7 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { pool } from '../lib/db.js';
 import { requireSession, requireApiKey, generateApiKey, hashKey, createSession, PLANS } from '../lib/auth.js';
-import { storeDeviceVerification, claimDeviceVerification, hasDeviceVerification } from '../lib/storage.js';
+import { storeDeviceVerification, claimDeviceVerification, hasDeviceVerification, storePendingApiKey, getPendingApiKey } from '../lib/storage.js';
 
 const router = Router();
 
@@ -257,7 +257,10 @@ router.get('/verify/:token', async (req, res) => {
         );
         const planResult = await pool.query('SELECT plan, email FROM users WHERE id = $1', [userId]);
         const { plan, email } = planResult.rows[0] ?? { plan: 'free' };
-        await storeDeviceVerification(deviceId, { apiKey: raw, plan, email });
+        const keyPayload = { apiKey: raw, plan, email };
+        await storeDeviceVerification(deviceId, keyPayload);
+        // Also cache by userId so the poll fallback can retrieve it without creating a new key
+        await storePendingApiKey(userId, keyPayload);
         sendWelcomeEmail(email, raw).catch(err =>
           console.error('[auth] Failed to send welcome email:', err.message),
         );
@@ -399,17 +402,27 @@ router.get('/poll/:deviceId', async (req, res) => {
 
     const { expires_at, used, user_id, email, plan } = result.rows[0];
 
-    // 3. Link was clicked but Redis entry is missing (Redis write failed in verify route)
-    //    Regenerate an API key and store it so subsequent polls succeed.
+    // 3. Link was clicked but Redis device entry is missing (e.g. transient Redis blip).
+    //    Check the user-keyed pending cache first before creating a new DB key.
     if (used) {
       try {
+        // Check user-keyed cache — avoids creating a duplicate DB entry on each poll
+        const pending = await getPendingApiKey(user_id);
+        if (pending) {
+          // Re-populate device cache so future polls skip this branch
+          await storeDeviceVerification(deviceId, pending);
+          return res.json({ status: 'verified', apiKey: pending.apiKey, plan: pending.plan, email: pending.email });
+        }
+
+        // No cached key found — create a new one (last resort, should be rare)
         const { raw, hash, prefix } = generateApiKey();
         await pool.query(
           `INSERT INTO api_keys (user_id, key_hash, key_prefix, label) VALUES ($1, $2, $3, $4)`,
           [user_id, hash, prefix, 'Extension'],
         );
-        // Cache in Redis so this branch only runs once
-        await storeDeviceVerification(deviceId, { apiKey: raw, plan, email });
+        const newPayload = { apiKey: raw, plan, email };
+        await storeDeviceVerification(deviceId, newPayload);
+        await storePendingApiKey(user_id, newPayload);
         return res.json({ status: 'verified', apiKey: raw, plan, email });
       } catch (err) {
         console.error('[auth] poll fallback key creation failed:', err.message);
@@ -465,9 +478,13 @@ router.post('/webhook', async (req, res) => {
       environment: process.env.DODO_ENV ?? 'live_mode',
     });
 
-    // unwrap() verifies the HMAC signature and returns the parsed event
+    // unwrap() verifies the HMAC signature against the raw request bytes.
+    // express.raw() is registered for this route in index.js so req.body is a Buffer.
+    const rawBody = Buffer.isBuffer(req.body)
+      ? req.body.toString('utf8')
+      : JSON.stringify(req.body); // fallback — should not occur in production
     event = dodo.webhooks.unwrap(
-      typeof req.body === 'string' ? req.body : JSON.stringify(req.body),
+      rawBody,
       {
         'webhook-id': req.headers['webhook-id'],
         'webhook-signature': req.headers['webhook-signature'],

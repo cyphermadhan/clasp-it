@@ -6,6 +6,7 @@
  */
 
 import { createRequire } from 'module';
+import { pool } from './db.js';
 
 // ─── Redis client (optional) ─────────────────────────────────────────────────
 
@@ -238,6 +239,46 @@ export async function claimDeviceVerification(deviceId) {
   }
 }
 
+// ─── Pending API key cache (keyed by userId, 15-min TTL) ─────────────────────
+// Stored alongside the device verification so the poll fallback can retrieve
+// the same raw key without creating a new DB entry on every Redis miss.
+
+const pendingKeyStore = new Map();
+
+/**
+ * Cache the raw API key data for a user during the magic link window.
+ * @param {string} userId
+ * @param {{ apiKey: string, plan: string, email: string }} data
+ */
+export async function storePendingApiKey(userId, data) {
+  const value = serialize(data);
+  if (redis) {
+    await redis.set(`pending_key:${userId}`, value, 'EX', DEVICE_VERIFY_TTL);
+  } else {
+    pendingKeyStore.set(userId, { value, expires: Date.now() + DEVICE_VERIFY_TTL * 1000 });
+  }
+}
+
+/**
+ * Retrieve (but do not delete) the cached raw API key for a user.
+ * Returns null if not found or expired.
+ * @param {string} userId
+ * @returns {Promise<{ apiKey: string, plan: string, email: string } | null>}
+ */
+export async function getPendingApiKey(userId) {
+  if (redis) {
+    const value = await redis.get(`pending_key:${userId}`);
+    return deserialize(value);
+  }
+  const entry = pendingKeyStore.get(userId);
+  if (!entry) return null;
+  if (Date.now() > entry.expires) {
+    pendingKeyStore.delete(userId);
+    return null;
+  }
+  return deserialize(entry.value);
+}
+
 /**
  * Check if a device verification exists (without consuming it).
  * @returns {Promise<boolean>}
@@ -257,13 +298,12 @@ export async function hasDeviceVerification(deviceId) {
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
 
-/** In-memory rate limit store for dev (no Redis). */
-const rateLimitStore = new Map();
-
 /**
  * Increment the daily pick counter for a user and check against the limit.
  *
- * Redis key: `ratelimit:<userId>:<YYYY-MM-DD>` — expires after 24h.
+ * Priority: Redis (atomic INCR) → Postgres picks count → in-memory (dev only).
+ * Redis is the only truly atomic source. Postgres is a persistent best-effort
+ * fallback for when Redis is unavailable in production.
  *
  * @param {string} userId
  * @param {number} limitPerDay  Pass Infinity to skip the check (pro/team).
@@ -281,9 +321,21 @@ export async function checkAndIncrementRateLimit(userId, limitPerDay) {
     return { allowed: count <= limitPerDay, count, limit: limitPerDay };
   }
 
-  const prev = rateLimitStore.get(key) ?? 0;
+  // Postgres fallback — count committed picks for today (persistent across restarts)
+  if (pool) {
+    const result = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM picks WHERE user_id = $1 AND created_at >= CURRENT_DATE`,
+      [userId],
+    );
+    const count = (result.rows[0]?.count ?? 0) + 1; // +1 for the pick being attempted
+    return { allowed: count <= limitPerDay, count, limit: limitPerDay };
+  }
+
+  // No Redis, no DB — in-memory map (dev only, resets on restart)
+  const inMemStore = checkAndIncrementRateLimit._store ??= new Map();
+  const prev = inMemStore.get(key) ?? 0;
   const count = prev + 1;
-  rateLimitStore.set(key, count);
+  inMemStore.set(key, count);
   return { allowed: count <= limitPerDay, count, limit: limitPerDay };
 }
 

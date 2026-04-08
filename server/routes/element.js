@@ -8,8 +8,8 @@
  */
 
 import { Router } from 'express';
-import { storePick, getPickStatuses } from '../lib/storage.js';
-import { checkAndIncrementRateLimit } from '../lib/storage.js';
+import crypto from 'crypto';
+import { storePick, getPickStatuses, checkAndIncrementRateLimit } from '../lib/storage.js';
 import { requireApiKey, gatePayload, PLANS } from '../lib/auth.js';
 import { pool } from '../lib/db.js';
 
@@ -35,11 +35,21 @@ router.post('/', requireApiKey, async (req, res) => {
       });
     }
 
+    // ── Payload size guard for free users ──────────────────────────────────────
+    // Free users shouldn't be sending large pro payloads (screenshots etc).
+    // Reject early rather than accept, process, and discard.
+    if (userPlan !== 'pro') {
+      const bytes = parseInt(req.headers['content-length'] ?? '0', 10);
+      if (bytes > 50 * 1024) {
+        return res.status(413).json({ success: false, error: 'Payload too large for free plan' });
+      }
+    }
+
     // ── Feature gating ─────────────────────────────────────────────────────────
     const payload = gatePayload(req.body, userPlan);
 
     // ── Build pick ─────────────────────────────────────────────────────────────
-    const id = `pick_${Date.now()}`;
+    const id = `pick_${crypto.randomBytes(8).toString('hex')}`;
     const timestamp = new Date().toISOString();
 
     const pick = { ...payload, id, timestamp, status: 'not_started' };
