@@ -93,36 +93,6 @@ nav {
 
 .hero-actions .btn { padding: 12px 24px; font-size: 15px; }
 
-.hero-signup {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.hero-signup input[type="email"] {
-  padding: 11px 16px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-family: inherit;
-  font-size: 15px;
-  background: var(--bg-card);
-  color: var(--text);
-  outline: none;
-  transition: border-color 0.15s;
-  width: 220px;
-}
-
-.hero-signup input[type="email"]:focus { border-color: var(--accent); }
-.hero-signup input[type="email"].error { border-color: #c0392b; }
-
-.hero-signup-success {
-  font-size: 15px;
-  color: var(--accent);
-  font-weight: 500;
-}
-
 /* ── Steps ── */
 .steps {
   max-width: 800px;

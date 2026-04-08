@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import observe from '../../analytics.js';
 
+const CWS_URL = 'https://chromewebstore.google.com/detail/clasp-it/inelkjifjfaepgpdndcgdkpmlopggnlk';
 
 export default function Home() {
   const [demoOpen, setDemoOpen] = useState(false);
-  const [email, setEmail] = useState('');
-  const [signupState, setSignupState] = useState('idle'); // idle | loading | success | error
 
   const openDemo = () => { observe.track('demo_opened'); setDemoOpen(true); };
   const closeDemo = () => setDemoOpen(false);
@@ -25,32 +24,6 @@ export default function Home() {
   useEffect(() => {
     document.body.style.overflow = demoOpen ? 'hidden' : '';
   }, [demoOpen]);
-
-  const handleSignup = useCallback(async () => {
-    if (!email || !email.includes('@')) {
-      setSignupState('error');
-      setTimeout(() => setSignupState('idle'), 1800);
-      return;
-    }
-    setSignupState('loading');
-    try {
-      const res = await fetch('/beta/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        observe.track('beta_signup_submitted', { email });
-        setSignupState('success');
-      } else {
-        setSignupState('error');
-        setTimeout(() => setSignupState('idle'), 1800);
-      }
-    } catch {
-      setSignupState('idle');
-    }
-  }, [email]);
 
   return (
     <>
@@ -92,28 +65,15 @@ export default function Home() {
         <h1>Pick any element.<br /><em>Fix it with AI.</em></h1>
         <p>Click any element on any webpage. Clasp-it captures the HTML, CSS, and context — your AI editor reads it and makes the edit.</p>
         <div className="hero-actions">
-          {signupState === 'success' ? (
-            <p className="hero-signup-success">Thanks! Check your email — your API key and download link are on their way.</p>
-          ) : (
-            <div className="hero-signup">
-              <input
-                type="email"
-                placeholder="your@email.com"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleSignup(); }}
-                className={signupState === 'error' ? 'error' : ''}
-              />
-              <button
-                className="btn btn-primary"
-                onClick={handleSignup}
-                disabled={signupState === 'loading'}
-              >
-                {signupState === 'loading' ? 'Sending…' : "Join beta — it's free"}
-              </button>
-            </div>
-          )}
+          <a
+            href={CWS_URL}
+            className="btn btn-primary"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => observe.track('install_cws_clicked')}
+          >
+            Add to Chrome — it's free
+          </a>
         </div>
         <div style={{ marginTop: 16 }}>
           <button className="btn btn-ghost" onClick={openDemo}>
@@ -220,7 +180,7 @@ export default function Home() {
             <p className="plan-name">Free</p>
             <p className="plan-price">$0</p>
             <p className="plan-desc">10 picks per day, always free.</p>
-            <a href="https://chrome.google.com/webstore" className="plan-cta plan-cta-free">Get started free</a>
+            <a href={CWS_URL} className="plan-cta plan-cta-free" target="_blank" rel="noopener noreferrer" onClick={() => observe.track('install_cws_clicked')}>Get started free</a>
             <hr className="plan-divider" />
             <ul className="plan-features">
               <li>DOM &amp; selector</li>

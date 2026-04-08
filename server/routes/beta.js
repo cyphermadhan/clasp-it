@@ -80,9 +80,8 @@ async function sendAlreadySignedUpEmail(email) {
 
 async function sendWelcomeEmail(email, apiKey) {
   const appUrl = process.env.APP_URL ?? 'http://localhost:3001';
+  const cwsUrl = 'https://chromewebstore.google.com/detail/clasp-it/inelkjifjfaepgpdndcgdkpmlopggnlk';
   const mcpCmd = `claude mcp add --scope user --transport http clasp-it ${appUrl}/mcp --header "Authorization: Bearer ${apiKey}"`;
-  const zipUrl = `${appUrl}/downloads/clasp-it-extension.zip`;
-  const setupUrl = `${appUrl}/downloads/clasp-it-setup.md`;
 
   if (!process.env.RESEND_API_KEY) {
     console.log(`[beta] Welcome email for ${email} (dev mode — no email sent, key omitted from logs)`);
@@ -95,7 +94,7 @@ async function sendWelcomeEmail(email, apiKey) {
   await resend.emails.send({
     from: process.env.RESEND_FROM ?? 'Clasp It <hello@claspit.dev>',
     to: email,
-    subject: 'Your Clasp-it beta access is ready 🎉',
+    subject: 'Your Clasp-it access is ready 🎉',
     html: `
 <!DOCTYPE html>
 <html>
@@ -108,14 +107,14 @@ async function sendWelcomeEmail(email, apiKey) {
         <!-- Header -->
         <tr><td style="background:#c6613f;padding:24px 32px;">
           <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">Clasp-it</p>
-          <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.8);">Pick any element. Fix it with Claude.</p>
+          <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.8);">Pick any element. Fix it with AI.</p>
         </td></tr>
 
         <!-- Intro -->
         <tr><td style="padding:32px 32px 0;">
-          <p style="margin:0 0 12px;font-size:16px;font-weight:600;color:#141413;">Welcome to the beta!</p>
+          <p style="margin:0 0 12px;font-size:16px;font-weight:600;color:#141413;">You're all set!</p>
           <p style="margin:0;font-size:14px;color:#73726c;line-height:1.6;">
-            Thanks for joining. Clasp-it is a Chrome extension that lets you click any element on any webpage and send its full context — HTML, CSS, React props, console logs, and a screenshot — directly to your AI editor via MCP. No more copy-pasting. No more describing what you see. Just click and tell your editor what to change.
+            Clasp-it is a Chrome extension that lets you click any element on any webpage and send its full context — HTML, CSS, React props, console logs, and a screenshot — directly to your AI editor via MCP. No more copy-pasting. No more describing what you see. Just click and tell your editor what to change.
           </p>
         </td></tr>
 
@@ -131,20 +130,11 @@ async function sendWelcomeEmail(email, apiKey) {
         <!-- Step 1 -->
         <tr><td style="padding:24px 32px 0;">
           <p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#141413;">Step 1 — Install the Chrome extension</p>
-          <p style="margin:0 0 12px;font-size:14px;color:#73726c;line-height:1.6;">
-            Since Clasp-it is in beta, it isn't on the Chrome Web Store yet. You'll load it manually — it takes about 60 seconds.
+          <p style="margin:0 0 16px;font-size:14px;color:#73726c;line-height:1.6;">
+            Clasp-it is now available on the Chrome Web Store. Click below to install — it takes seconds.
           </p>
-          <ol style="margin:0 0 12px;padding-left:20px;font-size:14px;color:#73726c;line-height:2;">
-            <li>Download the extension: <a href="${zipUrl}" style="color:#c6613f;font-weight:500;">clasp-it-extension.zip</a></li>
-            <li>Unzip it to a permanent folder (don't delete it after — Chrome needs the folder)</li>
-            <li>Open <strong style="color:#141413;">chrome://extensions</strong> in your browser</li>
-            <li>Enable <strong style="color:#141413;">Developer mode</strong> (toggle in the top-right corner)</li>
-            <li>Click <strong style="color:#141413;">Load unpacked</strong> and select the unzipped folder</li>
-            <li>Pin the Clasp-it icon to your toolbar for easy access</li>
-          </ol>
-          <p style="margin:0;font-size:14px;color:#73726c;line-height:1.6;">
-            Once installed, open the extension sidebar and paste your API key above when prompted.
-          </p>
+          <a href="${cwsUrl}" style="display:inline-block;background:#c6613f;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:12px 20px;border-radius:8px;">Add Clasp-it to Chrome →</a>
+          <p style="margin:12px 0 0;font-size:13px;color:#73726c;">Once installed, open the extension sidebar and paste your API key above when prompted.</p>
         </td></tr>
 
         <!-- Step 2 -->
@@ -171,23 +161,10 @@ async function sendWelcomeEmail(email, apiKey) {
           </ol>
         </td></tr>
 
-        <!-- Setup guide -->
-        <tr><td style="padding:24px 32px 0;">
-          <table width="100%" cellpadding="0" cellspacing="0">
-            <tr>
-              <td style="background:#f5f4ed;border:1px solid rgba(31,30,29,0.1);border-radius:8px;padding:14px 16px;">
-                <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#141413;">📄 Full setup guide</p>
-                <p style="margin:0 0 10px;font-size:13px;color:#73726c;line-height:1.5;">Download the Markdown setup guide and drop it into your project. You can then ask Claude or any LLM questions about Clasp-it — installation, usage, troubleshooting — and it'll have everything it needs to help you.</p>
-                <a href="${setupUrl}" style="color:#c6613f;font-size:13px;font-weight:500;">Download clasp-it-setup.md →</a>
-              </td>
-            </tr>
-          </table>
-        </td></tr>
-
         <!-- Support -->
         <tr><td style="padding:24px 32px 0;">
           <p style="margin:0;font-size:14px;color:#73726c;line-height:1.6;">
-            Something not working? Just reply to this email and I'll help you sort it out. Feedback is very welcome too — this is beta and your input shapes what gets built next.
+            Something not working? Just reply to this email and I'll help you sort it out. Feedback is very welcome too — your input shapes what gets built next.
           </p>
         </td></tr>
 
