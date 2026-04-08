@@ -1,0 +1,80 @@
+{
+  "name": "clasp-it",
+  "displayName": "Clasp-it",
+  "description": "Pick any element on any webpage and send its full context (HTML, CSS, React props, console logs, network requests, screenshot) to Claude Code, Cursor, or Windsurf via MCP — in one click.",
+  "version": "1.0.1",
+  "icon": "https://claspit.dev/icon.png",
+  "homepage": "https://claspit.dev",
+  "repository": "https://github.com/cyphermadhan/clasp-it",
+  "license": "MIT",
+  "author": {
+    "name": "Madhan Raj",
+    "email": "dev@madhans.world",
+    "url": "https://madhans.world"
+  },
+  "categories": [
+    "developer-tools",
+    "web-development",
+    "ui-debugging",
+    "browser",
+    "frontend"
+  ],
+  "tags": [
+    "chrome-extension",
+    "dom-inspector",
+    "css-debugger",
+    "react-devtools",
+    "element-picker",
+    "claude-code",
+    "cursor",
+    "windsurf",
+    "mcp",
+    "model-context-protocol",
+    "ai-coding",
+    "web-development"
+  ],
+  "server": {
+    "transport": "http",
+    "url": "https://claspit.dev/mcp",
+    "auth": {
+      "type": "bearer",
+      "description": "API key from Clasp-it extension settings or https://claspit.dev"
+    }
+  },
+  "installInstructions": {
+    "claudeCode": "claude mcp add --scope user --transport http clasp-it https://claspit.dev/mcp --header \"Authorization: Bearer YOUR_API_KEY\"",
+    "cursor": "Add to ~/.cursor/mcp.json under mcpServers: { \"clasp-it\": { \"url\": \"https://claspit.dev/mcp\", \"headers\": { \"Authorization\": \"Bearer YOUR_API_KEY\" } } }",
+    "windsurf": "Add to ~/.codeium/windsurf/mcp_config.json under mcpServers: { \"clasp-it\": { \"serverUrl\": \"https://claspit.dev/mcp\", \"headers\": { \"Authorization\": \"Bearer YOUR_API_KEY\" } } }"
+  },
+  "tools": [
+    {
+      "name": "get_element_context",
+      "description": "Get the most recently picked element context (HTML, CSS, React props, console logs, network requests, screenshot). Auto-marks the pick as in_progress."
+    },
+    {
+      "name": "get_element_context_by_id",
+      "description": "Get a specific pick by its ID."
+    },
+    {
+      "name": "list_recent_picks",
+      "description": "List the last N element picks with their status (not_started, in_progress, completed)."
+    },
+    {
+      "name": "update_pick_status",
+      "description": "Mark a pick as not_started, in_progress, or completed."
+    },
+    {
+      "name": "clear_context",
+      "description": "Clear all picks for the current user."
+    }
+  ],
+  "pricing": {
+    "free": {
+      "description": "10 picks/day, DOM + CSS selector + computed styles"
+    },
+    "pro": {
+      "price": "$2.99/month or $24/year",
+      "description": "Unlimited picks + screenshot, console logs, network requests, React props"
+    }
+  }
+}

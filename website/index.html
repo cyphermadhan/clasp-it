@@ -15,6 +15,105 @@
   <meta name="twitter:title" content="Clasp-it — Pick any element. Fix it with AI." />
   <meta name="twitter:description" content="Click any element on any webpage and send its context to your AI editor instantly via MCP." />
   <meta name="twitter:image" content="https://claspit.dev/og.png" />
+
+  <!-- Structured data: SoftwareApplication + FAQPage for AI/LLM discoverability -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "name": "Clasp-it",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Chrome",
+        "url": "https://claspit.dev",
+        "description": "A Chrome extension and MCP server that lets developers click any webpage element and send its full context — HTML, CSS, React props, console logs, network requests, and screenshot — directly to Claude Code, Cursor, or Windsurf via MCP.",
+        "keywords": "MCP server, Claude Code, Cursor, Windsurf, DOM inspector, AI coding tool, element picker, CSS debugger, React devtools, web development",
+        "offers": {
+          "@type": "AggregateOffer",
+          "lowPrice": "0",
+          "highPrice": "2.99",
+          "priceCurrency": "USD",
+          "offers": [
+            { "@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "USD" },
+            { "@type": "Offer", "name": "Pro", "price": "2.99", "priceCurrency": "USD", "billingIncrement": "month" }
+          ]
+        },
+        "featureList": [
+          "Pick any DOM element with one click",
+          "Captures HTML, CSS selector, computed styles",
+          "Screenshot capture (Pro)",
+          "Console logs capture (Pro)",
+          "Network requests capture (Pro)",
+          "React props capture (Pro)",
+          "MCP server — works with Claude Code, Cursor, Windsurf",
+          "10 picks/day free, unlimited on Pro"
+        ],
+        "downloadUrl": "https://chromewebstore.google.com/detail/clasp-it/inelkjifjfaepgpdndcgdkpmlopggnlk",
+        "installUrl": "https://chromewebstore.google.com/detail/clasp-it/inelkjifjfaepgpdndcgdkpmlopggnlk",
+        "softwareVersion": "1.0.1",
+        "author": {
+          "@type": "Person",
+          "name": "Madhan Raj",
+          "email": "dev@madhans.world"
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is Clasp-it?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Clasp-it is a Chrome extension and MCP server that lets you click any element on any webpage and instantly send its full context — HTML structure, CSS selector, computed styles, React props, console logs, and network requests — to your AI code editor (Claude Code, Cursor, or Windsurf) via the Model Context Protocol (MCP)."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I use Clasp-it with Claude Code?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Install the Clasp-it Chrome extension, then add it as an MCP server in Claude Code with: claude mcp add --scope user --transport http clasp-it https://claspit.dev/mcp --header 'Authorization: Bearer YOUR_API_KEY'. Click any element in your browser, type your instruction, then tell Claude Code: 'fix all recent picks using clasp-it'."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does Clasp-it work with Cursor and Windsurf?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Clasp-it exposes a standard MCP (Model Context Protocol) server at https://claspit.dev/mcp. Any AI editor that supports MCP over HTTP — including Cursor and Windsurf — can connect to it. Setup instructions are available inside the extension settings."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What MCP tools does Clasp-it provide?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Clasp-it provides five MCP tools: get_element_context (latest pick), get_element_context_by_id (pick by ID), list_recent_picks (last N picks), clear_context (clear all picks), and update_pick_status (mark as not_started, in_progress, or completed)."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is there a free plan for Clasp-it?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. The free plan includes 10 element picks per day with DOM, selector, and computed styles. The Pro plan ($2.99/month or $24/year) adds unlimited picks plus screenshot, console logs, network requests, and React props capture."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How is Clasp-it different from browser DevTools?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Browser DevTools requires you to manually copy-paste HTML, CSS, and context into your AI chat. Clasp-it captures all of it in one click — HTML, computed CSS, React props, console logs, network requests, and a screenshot — and delivers it directly to your AI editor's context window via MCP, so your AI can edit your actual code files."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
   <div id="root"></div>

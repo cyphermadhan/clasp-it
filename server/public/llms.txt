@@ -1,0 +1,67 @@
+# Clasp-it
+
+> A Chrome extension + MCP server that lets developers click any element on any webpage and send its full context to Claude Code, Cursor, or Windsurf via MCP — in one click.
+
+## What it does
+
+Clasp-it bridges the gap between browser inspection and AI-assisted code editing. Instead of manually copying HTML and CSS into an AI chat, you click an element, type your instruction, and your AI editor reads the full context and edits your source files directly.
+
+One click captures:
+- HTML structure and DOM selector
+- Computed CSS styles
+- React props (Pro)
+- Console logs (Pro)
+- Network requests (Pro)
+- Screenshot (Pro)
+
+## Who it's for
+
+Frontend developers and full-stack engineers who use Claude Code, Cursor, or Windsurf to write and fix code. Particularly useful when debugging UI issues, implementing design changes, or fixing layout bugs on live pages.
+
+## How to install
+
+1. Install from Chrome Web Store: https://chromewebstore.google.com/detail/clasp-it/inelkjifjfaepgpdndcgdkpmlopggnlk
+2. Sign up with your email to get a free API key
+3. Add as an MCP server:
+
+```
+claude mcp add --scope user --transport http clasp-it https://claspit.dev/mcp --header "Authorization: Bearer YOUR_API_KEY"
+```
+
+## MCP endpoint
+
+- URL: https://claspit.dev/mcp
+- Transport: HTTP (Streamable HTTP, MCP spec compliant)
+- Auth: Bearer token (API key from extension settings)
+
+## MCP tools
+
+- `get_element_context` — Get the most recently picked element (auto-marks in_progress)
+- `get_element_context_by_id` — Get a specific pick by ID
+- `list_recent_picks` — List the last N picks with status
+- `update_pick_status` — Mark a pick as not_started, in_progress, or completed
+- `clear_context` — Clear all picks
+
+## Typical Claude Code usage
+
+```
+fix all recent picks using clasp-it
+```
+
+Or more specifically:
+
+```
+use clasp-it to get recent picks and fix the layout issue on the dashboard
+```
+
+## Pricing
+
+- Free: 10 picks/day, DOM + selector + computed styles
+- Pro: $2.99/month or $24/year — unlimited picks + screenshot, console logs, network requests, React props
+
+## Links
+
+- Website: https://claspit.dev
+- Chrome Web Store: https://chromewebstore.google.com/detail/clasp-it/inelkjifjfaepgpdndcgdkpmlopggnlk
+- MCP server: https://claspit.dev/mcp
+- Support: dev@madhans.world
