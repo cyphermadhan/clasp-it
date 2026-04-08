@@ -44,7 +44,98 @@ function isValidEmail(email) {
   return typeof email === 'string' && EMAIL_RE.test(email) && email.length <= 254;
 }
 
-// ─── Email helper ─────────────────────────────────────────────────────────────
+// ─── Email helpers ────────────────────────────────────────────────────────────
+
+async function sendWelcomeEmail(email, apiKey) {
+  if (!process.env.RESEND_API_KEY) {
+    console.log(`[auth] Welcome email for ${email} (dev mode — not sent)`);
+    return;
+  }
+
+  const appUrl = process.env.APP_URL ?? 'http://localhost:3001';
+  const mcpCmd = `claude mcp add --scope user --transport http clasp-it ${appUrl}/mcp --header "Authorization: Bearer ${apiKey}"`;
+
+  const { Resend } = await import('resend');
+  const resend = new Resend(process.env.RESEND_API_KEY);
+
+  await resend.emails.send({
+    from: process.env.RESEND_FROM ?? 'Clasp It <hello@claspit.dev>',
+    to: email,
+    subject: 'You\'re all set — connect Clasp-it to your editor',
+    html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
+<body style="margin:0;padding:0;background:#faf9f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#141413;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#faf9f7;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;border:1px solid rgba(31,30,29,0.1);overflow:hidden;">
+
+        <!-- Header -->
+        <tr><td style="background:#c6613f;padding:24px 32px;">
+          <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">Clasp-it</p>
+          <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.8);">Pick any element. Fix it with AI.</p>
+        </td></tr>
+
+        <!-- Intro -->
+        <tr><td style="padding:32px 32px 0;">
+          <p style="margin:0 0 12px;font-size:16px;font-weight:600;color:#141413;">The extension is ready — one step left.</p>
+          <p style="margin:0;font-size:14px;color:#73726c;line-height:1.6;">
+            Your Clasp-it account is verified and your API key is already loaded in the extension. Run the command below once to connect it to your AI editor.
+          </p>
+        </td></tr>
+
+        <!-- API Key -->
+        <tr><td style="padding:24px 32px 0;">
+          <p style="margin:0 0 8px;font-size:11px;font-weight:600;color:#73726c;text-transform:uppercase;letter-spacing:0.05em;">Your API Key — keep this safe</p>
+          <div style="background:#f5f4ed;border:1px solid rgba(31,30,29,0.12);border-radius:8px;padding:14px 16px;">
+            <p style="margin:0;font-family:'SF Mono',Consolas,monospace;font-size:13px;color:#141413;word-break:break-all;">${apiKey}</p>
+          </div>
+          <p style="margin:8px 0 0;font-size:12px;color:#73726c;">It's already saved in the extension. Store it somewhere safe in case you need it for another editor.</p>
+        </td></tr>
+
+        <!-- MCP command -->
+        <tr><td style="padding:24px 32px 0;">
+          <p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#141413;">Connect your AI editor (run once)</p>
+          <p style="margin:0 0 12px;font-size:14px;color:#73726c;line-height:1.6;">
+            Run this in your terminal — your API key is already filled in:
+          </p>
+          <div style="background:#f5f4ed;border:1px solid rgba(31,30,29,0.12);border-radius:8px;padding:14px 16px;overflow:hidden;">
+            <p style="margin:0;font-family:'SF Mono',Consolas,monospace;font-size:11px;color:#141413;word-break:break-all;line-height:1.6;">${mcpCmd}</p>
+          </div>
+          <p style="margin:8px 0 0;font-size:12px;color:#73726c;">After running this, restart your editor. Setup instructions for Cursor and Windsurf are in the extension settings.</p>
+        </td></tr>
+
+        <!-- Quick start -->
+        <tr><td style="padding:24px 32px 0;">
+          <p style="margin:0 0 12px;font-size:14px;font-weight:600;color:#141413;">Pick your first element</p>
+          <ol style="margin:0;padding-left:20px;font-size:14px;color:#73726c;line-height:2;">
+            <li>Open any webpage in Chrome</li>
+            <li>Click the Clasp-it icon → click <strong style="color:#141413;">Pick Element</strong></li>
+            <li>Click any element on the page, type your instruction, hit Send</li>
+            <li>Switch to your AI editor and say: <strong style="color:#141413;">"fix all recent picks using clasp-it"</strong></li>
+          </ol>
+        </td></tr>
+
+        <!-- Support -->
+        <tr><td style="padding:24px 32px 0;">
+          <p style="margin:0;font-size:14px;color:#73726c;line-height:1.6;">
+            Something not working? Just reply to this email. Feedback is very welcome too — your input shapes what gets built next.
+          </p>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="padding:24px 32px 32px;">
+          <p style="margin:0;font-size:12px;color:rgba(115,114,108,0.6);">© 2026 Clasp-it · <a href="${appUrl}" style="color:rgba(115,114,108,0.6);">claspit.dev</a></p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+  });
+}
 
 async function sendMagicLink(email, token) {
   const appUrl = process.env.APP_URL ?? 'http://localhost:3001';
@@ -167,6 +258,9 @@ router.get('/verify/:token', async (req, res) => {
         const planResult = await pool.query('SELECT plan, email FROM users WHERE id = $1', [userId]);
         const { plan, email } = planResult.rows[0] ?? { plan: 'free' };
         await storeDeviceVerification(deviceId, { apiKey: raw, plan, email });
+        sendWelcomeEmail(email, raw).catch(err =>
+          console.error('[auth] Failed to send welcome email:', err.message),
+        );
       } catch (err) {
         console.error('[auth] Failed to auto-create key for device poll:', err.message);
       }

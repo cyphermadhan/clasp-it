@@ -13,7 +13,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 import elementRouter from './routes/element.js';
 import mcpRouter from './routes/mcp.js';
 import authRouter from './routes/auth.js';
-import betaRouter from './routes/beta.js';
 
 import { redis } from './lib/storage.js';
 import { initSchema } from './lib/db.js';
@@ -57,7 +56,6 @@ app.use('/billing', authRouter);
 app.use('/element-context', elementRouter);
 app.use('/picks', elementRouter);
 app.use('/mcp', mcpRouter);
-app.use('/beta', betaRouter);
 
 // ─── 404 catch-all ────────────────────────────────────────────────────────────
 
