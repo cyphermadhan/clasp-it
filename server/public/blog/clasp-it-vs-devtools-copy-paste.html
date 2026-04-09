@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/icon.png" />
+  <title>Clasp-it vs Manually Copying from DevTools — Clasp-it</title>
+  <meta name="description" content="A side-by-side comparison of the old DevTools copy-paste workflow vs Clasp-it for AI-assisted frontend debugging. Same result, half the steps." />
+  <meta property="og:title" content="Clasp-it vs Manually Copying from DevTools" />
+  <meta property="og:description" content="A side-by-side comparison of the old DevTools copy-paste workflow vs Clasp-it for AI-assisted frontend debugging. Same result, half the steps." />
+  <meta property="og:url" content="https://claspit.dev/blog/clasp-it-vs-devtools-copy-paste" />
+  <meta property="og:type" content="article" />
+  <link rel="canonical" href="https://claspit.dev/blog/clasp-it-vs-devtools-copy-paste" />
+  <link rel="stylesheet" href="/blog/blog.css" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Clasp-it vs Manually Copying from DevTools",
+    "description": "A side-by-side comparison of the old DevTools copy-paste workflow vs Clasp-it for AI-assisted frontend debugging.",
+    "datePublished": "2026-04-09",
+    "dateModified": "2026-04-09",
+    "author": { "@type": "Person", "name": "Madhan Raj", "url": "https://madhans.world" },
+    "publisher": { "@type": "Organization", "name": "Clasp-it", "url": "https://claspit.dev", "logo": "https://claspit.dev/icon.png" },
+    "url": "https://claspit.dev/blog/clasp-it-vs-devtools-copy-paste",
+    "mainEntityOfPage": "https://claspit.dev/blog/clasp-it-vs-devtools-copy-paste"
+  }
+  </script>
+</head>
+<body>
+  <nav>
+    <a href="/" class="nav-logo">
+      <img src="/icon.png" alt="Clasp-it logo" />
+      Clasp-it
+    </a>
+    <span class="nav-blog"><a href="/blog">← Blog</a></span>
+  </nav>
+
+  <article class="article">
+    <div class="article-meta">
+      <span class="article-tag">Comparison</span>
+      <span class="article-date">April 9, 2026</span>
+      <span class="article-read">5 min read</span>
+    </div>
+
+    <h1>Clasp-it vs Manually Copying from DevTools</h1>
+    <p class="article-lead">Before Clasp-it, getting browser element context into your AI editor meant a lot of manual steps. Here's an honest side-by-side comparison of both approaches — when each one makes sense, and what you actually save.</p>
+
+    <h2>The Manual DevTools Workflow</h2>
+    <p>This is what most developers do today when they want Claude Code, Cursor, or Windsurf to help fix a UI bug:</p>
+    <ol>
+      <li>Spot the bug in the browser</li>
+      <li>Right-click the element → Inspect</li>
+      <li>In the Elements panel, right-click the node → Copy → Copy outerHTML</li>
+      <li>Switch to the Computed tab, find the relevant styles, screenshot or manually copy them</li>
+      <li>If it's a React app, open the React DevTools extension and find the component name and props</li>
+      <li>Check the Console tab for any related errors, copy them</li>
+      <li>Switch to your editor</li>
+      <li>Open a new chat, paste everything in, describe what's wrong</li>
+      <li>Wait for Claude to generate a fix</li>
+      <li>Apply the fix manually or ask Claude to find the file</li>
+      <li>Reload the browser, check if it worked</li>
+      <li>If not, repeat from step 2</li>
+    </ol>
+    <p>That's 12 steps for a single bug. And step 12 is common — the first fix often misses because the context you provided was incomplete or Claude couldn't identify the right source file.</p>
+
+    <h2>The Clasp-it Workflow</h2>
+    <ol>
+      <li>Spot the bug in the browser</li>
+      <li>Click the Clasp-it icon → click the element → type the instruction → send</li>
+      <li>Switch to your editor, type: <em>"fix all recent picks using clasp-it"</em></li>
+      <li>Reload the browser, check if it worked</li>
+    </ol>
+    <p>Four steps. And step 4 is less common — the context Clasp-it provides is more complete, so fixes tend to be more accurate on the first pass.</p>
+
+    <h2>What Clasp-it Captures That You Usually Miss</h2>
+    <p>When you copy HTML manually from DevTools, you're getting the HTML string. But that's rarely enough. Here's what developers typically forget to include, and what Clasp-it captures automatically:</p>
+
+    <h3>Computed styles, not just class names</h3>
+    <p>DevTools shows you that an element has class <code>btn-primary</code>. But if Claude doesn't know what <code>btn-primary</code> resolves to in computed CSS, it might make changes that conflict with existing styles. Clasp-it captures the computed values — the actual pixel sizes, colors, and spacing that the browser has applied.</p>
+
+    <h3>The unique CSS selector</h3>
+    <p>Finding the right CSS selector for an element is tedious. Clasp-it generates the most specific selector automatically — Claude can use this to target the exact rule without guessing.</p>
+
+    <h3>React component context</h3>
+    <p>In a React app, the HTML in DevTools often looks like <code>&lt;div class="sc-abc123 def456"&gt;</code> — generated class names that mean nothing without the source. Clasp-it captures the component name (<code>Button</code>, <code>NavItem</code>) and props, so Claude can find the actual component file rather than searching for an unreadable class name.</p>
+
+    <h3>Console errors at the time of the pick</h3>
+    <p>If a component is broken because of a JavaScript error, that error won't be visible in the HTML. Clasp-it (Pro) captures any console errors present when you click the element — so if the layout is broken because of a failed API call or an unhandled promise, Claude sees that too.</p>
+
+    <h2>When Manual DevTools Is Still the Right Choice</h2>
+    <p>Clasp-it doesn't replace DevTools — it complements it. There are cases where the manual approach still makes sense:</p>
+    <ul>
+      <li><strong>Deep debugging</strong>: When you need to trace a bug through multiple layers of state, or understand why a value is what it is, the interactive DevTools debugger is better than any capture tool.</li>
+      <li><strong>Performance profiling</strong>: DevTools' Performance and Memory panels have no equivalent in Clasp-it.</li>
+      <li><strong>Network inspection</strong>: Clasp-it captures recent network requests, but for deep API debugging, the Network tab with request/response payloads is more useful.</li>
+      <li><strong>One-off questions</strong>: If you're just curious about a value, opening DevTools and checking is faster than setting up a pick.</li>
+    </ul>
+
+    <h2>The Real Difference: Batch Fixing</h2>
+    <p>The biggest practical advantage of Clasp-it over manual DevTools copying isn't speed on a single bug — it's the ability to batch fix multiple issues at once.</p>
+    <p>With manual DevTools, you fix bugs one at a time: spot one, copy context, get fix, apply, reload. Each cycle takes 5–15 minutes depending on complexity.</p>
+    <p>With Clasp-it, you can do a sweep: go through a page or a set of pages, pick every visual issue you spot, type a short instruction for each, and then hand the whole batch to Claude Code in one go. Claude processes them in sequence, editing your source files for each pick, and you review all the fixes together.</p>
+    <p>For a page with 10 visual issues, that's the difference between a 90-minute review cycle and a 20-minute one.</p>
+
+    <h2>Setup Cost</h2>
+    <p>The manual DevTools approach requires no setup — it's built into Chrome. Clasp-it requires:</p>
+    <ul>
+      <li>Installing the Chrome extension (~30 seconds)</li>
+      <li>Signing up for a free account (~1 minute)</li>
+      <li>Registering the MCP server in your editor (~2 minutes, one-time)</li>
+    </ul>
+    <p>After that initial setup, Clasp-it is always ready. The MCP server registration is permanent — you don't reconfigure it for each project.</p>
+
+    <div class="article-cta">
+      <h3>Try it yourself</h3>
+      <p>Free plan — 10 picks/day, no credit card required.</p>
+      <a href="https://chromewebstore.google.com/detail/clasp-it/inelkjifjfaepgpdndcgdkpmlopggnlk" class="btn btn-primary" target="_blank" rel="noopener noreferrer">Install Clasp-it</a>
+    </div>
+
+    <h2>Summary</h2>
+    <p>If you're already using Claude Code, Cursor, or Windsurf for frontend work, the manual DevTools workflow is your biggest remaining bottleneck. Clasp-it doesn't change how you debug — it removes the manual translation step between "what you see in the browser" and "what your AI editor needs to know".</p>
+    <p>The free plan is enough to feel the difference. Try it on a page with a few visual bugs — pick them all, then ask Claude to fix them in one shot.</p>
+  </article>
+
+  <footer>
+    <p>© 2026 Clasp-it</p>
+    <div class="footer-links">
+      <a href="mailto:dev@madhans.world">dev@madhans.world</a>
+      <a href="/privacy">Privacy Policy</a>
+    </div>
+  </footer>
+</body>
+</html>

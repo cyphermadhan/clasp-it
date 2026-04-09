@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/icon.png" />
+  <title>What Is MCP and Why Every Frontend Dev Should Care — Clasp-it</title>
+  <meta name="description" content="The Model Context Protocol is changing how AI editors understand your codebase. Here's what MCP is, how it works, and why it matters for frontend developers." />
+  <meta property="og:title" content="What Is MCP and Why Every Frontend Dev Should Care" />
+  <meta property="og:description" content="The Model Context Protocol is changing how AI editors understand your codebase. Here's what MCP is, how it works, and why it matters for frontend developers." />
+  <meta property="og:url" content="https://claspit.dev/blog/what-is-mcp-for-frontend-developers" />
+  <meta property="og:type" content="article" />
+  <link rel="canonical" href="https://claspit.dev/blog/what-is-mcp-for-frontend-developers" />
+  <link rel="stylesheet" href="/blog/blog.css" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "What Is MCP and Why Every Frontend Dev Should Care",
+    "description": "The Model Context Protocol is changing how AI editors understand your codebase. Here's what MCP is, how it works, and why it matters for frontend developers.",
+    "datePublished": "2026-04-09",
+    "dateModified": "2026-04-09",
+    "author": { "@type": "Person", "name": "Madhan Raj", "url": "https://madhans.world" },
+    "publisher": { "@type": "Organization", "name": "Clasp-it", "url": "https://claspit.dev", "logo": "https://claspit.dev/icon.png" },
+    "url": "https://claspit.dev/blog/what-is-mcp-for-frontend-developers",
+    "mainEntityOfPage": "https://claspit.dev/blog/what-is-mcp-for-frontend-developers"
+  }
+  </script>
+</head>
+<body>
+  <nav>
+    <a href="/" class="nav-logo">
+      <img src="/icon.png" alt="Clasp-it logo" />
+      Clasp-it
+    </a>
+    <span class="nav-blog"><a href="/blog">← Blog</a></span>
+  </nav>
+
+  <article class="article">
+    <div class="article-meta">
+      <span class="article-tag">Explainer</span>
+      <span class="article-date">April 9, 2026</span>
+      <span class="article-read">7 min read</span>
+    </div>
+
+    <h1>What Is MCP and Why Every Frontend Dev Should Care</h1>
+    <p class="article-lead">If you're using Claude Code, Cursor, or Windsurf, you may have heard MCP mentioned alongside integrations and plugins. It sounds technical, but the core idea is simple — and it's changing what AI editors can actually do. Here's a plain-language breakdown, with a focus on why it matters specifically for frontend work.</p>
+
+    <h2>The Problem MCP Solves</h2>
+    <p>AI code editors are useful, but they have a fundamental limitation: they only know what you tell them. If you want Claude or Cursor to fix a bug, you need to provide the context — the relevant code, the error message, the component structure, whatever the AI needs to understand the problem.</p>
+    <p>Most of the time, that means you're doing a lot of manual work: copying error messages, pasting component code, describing what you see on screen. This is tedious and error-prone. You might miss a relevant file, forget to include the CSS, or describe the bug in a way that doesn't match what the AI needs.</p>
+    <p>MCP fixes this by giving AI editors a way to fetch context directly from tools, databases, and services — without you being the middleman.</p>
+
+    <h2>What MCP Actually Is</h2>
+    <p>MCP stands for Model Context Protocol. It's an open standard created by Anthropic that defines how AI editors communicate with external tools. Think of it like a USB standard — it doesn't matter what the tool is or who built it, as long as both sides speak MCP, they can connect.</p>
+    <p>An MCP server is any service that exposes tools following this standard. An AI editor that supports MCP can discover those tools and call them during a conversation. When the AI needs information — a database record, a file's contents, live data from an API — it calls the MCP tool and gets the result back as part of its context.</p>
+
+    <h2>How It Works in Practice</h2>
+    <p>Here's a concrete example. Say you're using Claude Code and you tell it: <em>"fix the layout bug I just picked with Clasp-it"</em>.</p>
+    <p>Without MCP, Claude would need you to paste the HTML, CSS, and a description of the bug. With MCP, here's what actually happens:</p>
+    <ol>
+      <li>Claude recognizes it needs element context and calls the <code>get_element_context</code> MCP tool</li>
+      <li>The Clasp-it MCP server receives the request, looks up your latest pick, and returns the full context: HTML, CSS selector, computed styles, your instruction, and any console errors</li>
+      <li>Claude gets all of this as structured data in its context window</li>
+      <li>Claude uses that context to find the right component in your codebase and apply the fix</li>
+    </ol>
+    <p>You didn't copy anything. You didn't describe anything. Claude fetched exactly what it needed.</p>
+
+    <h2>Why Frontend Developers Benefit Most</h2>
+    <p>Frontend development has a unique problem that MCP is well-suited to address: the gap between the browser and the code editor.</p>
+    <p>When you're building a UI, the truth lives in two places: the source files in your editor, and the rendered output in your browser. These are rarely in sync in a way that's easy to communicate to an AI. The browser applies CSS from multiple files, computes layout dynamically, renders React components through several layers of abstraction, and reflects runtime state that doesn't exist in any single source file.</p>
+    <p>MCP allows tools like Clasp-it to bridge this gap. Instead of you translating "what the browser shows" into "what Claude needs to know", an MCP server can do that translation directly — capturing computed styles, the component tree, console state, and network activity in a structured format that Claude understands.</p>
+
+    <h2>MCP vs. Browser Extensions for AI</h2>
+    <p>Some AI tools try to solve the browser-editor gap by building directly into the browser — as extensions that inject AI capabilities into the page. These have limitations:</p>
+    <ul>
+      <li>They're tied to a specific AI provider</li>
+      <li>They can't access your source files or apply fixes to your actual code</li>
+      <li>They don't integrate with your editor's full understanding of the codebase</li>
+    </ul>
+    <p>MCP takes a different approach: the browser extension captures context and stores it on an MCP server. Your AI editor — which already has access to your source files — reads that context via MCP and applies fixes directly. The browser and the editor stay in their respective lanes; MCP is just the bridge.</p>
+
+    <h2>What MCP Servers Exist for Frontend Development?</h2>
+    <p>The MCP ecosystem is growing quickly. Some useful servers for frontend developers:</p>
+    <ul>
+      <li><strong>Clasp-it</strong> — Browser element context (HTML, CSS, React props, console logs)</li>
+      <li><strong>Figma MCP</strong> — Read design specs directly from Figma files</li>
+      <li><strong>GitHub MCP</strong> — Read issues, PRs, and code from GitHub repositories</li>
+      <li><strong>Browser tools MCP</strong> — Programmatic browser control for testing</li>
+      <li><strong>Postgres / database MCPs</strong> — Query your database during AI conversations</li>
+    </ul>
+    <p>You can combine multiple MCP servers. For example, use Figma MCP to read a design spec and Clasp-it to read the current implementation — then ask Claude to make the implementation match the design.</p>
+
+    <h2>Getting Started with MCP</h2>
+    <p>If you haven't used MCP yet, Clasp-it is one of the easiest ways to start because the setup is minimal and the use case is immediately practical.</p>
+    <p>For Claude Code, one command registers the server:</p>
+    <pre><code>claude mcp add --scope user --transport http clasp-it https://claspit.dev/mcp --header "Authorization: Bearer YOUR_API_KEY"</code></pre>
+    <p>For Cursor and Windsurf, you edit a JSON config file. See the <a href="/blog/how-to-use-mcp-with-cursor-windsurf">setup guide for Cursor and Windsurf</a> for exact instructions.</p>
+    <p>Once it's running, you'll have a working example of the full MCP loop — browser captures context, server holds it, editor reads it and acts on it. From there, exploring other MCP servers is a natural next step.</p>
+
+    <div class="article-cta">
+      <h3>Try MCP with Clasp-it</h3>
+      <p>Free plan includes 10 picks/day. Works with Claude Code, Cursor, and Windsurf.</p>
+      <a href="https://chromewebstore.google.com/detail/clasp-it/inelkjifjfaepgpdndcgdkpmlopggnlk" class="btn btn-primary" target="_blank" rel="noopener noreferrer">Install Clasp-it</a>
+    </div>
+  </article>
+
+  <footer>
+    <p>© 2026 Clasp-it</p>
+    <div class="footer-links">
+      <a href="mailto:dev@madhans.world">dev@madhans.world</a>
+      <a href="/privacy">Privacy Policy</a>
+    </div>
+  </footer>
+</body>
+</html>

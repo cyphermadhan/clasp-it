@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/icon.png" />
+  <title>How to Use MCP Servers with Cursor and Windsurf — Clasp-it</title>
+  <meta name="description" content="MCP isn't just for Claude Code. Learn how to connect MCP servers to Cursor and Windsurf, with a step-by-step guide for adding Clasp-it to each editor." />
+  <meta property="og:title" content="How to Use MCP Servers with Cursor and Windsurf" />
+  <meta property="og:description" content="MCP isn't just for Claude Code. Learn how to connect MCP servers to Cursor and Windsurf, with step-by-step setup instructions." />
+  <meta property="og:url" content="https://claspit.dev/blog/how-to-use-mcp-with-cursor-windsurf" />
+  <meta property="og:type" content="article" />
+  <link rel="canonical" href="https://claspit.dev/blog/how-to-use-mcp-with-cursor-windsurf" />
+  <link rel="stylesheet" href="/blog/blog.css" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "How to Use MCP Servers with Cursor and Windsurf",
+    "description": "MCP isn't just for Claude Code. Learn how to connect MCP servers to Cursor and Windsurf, with a step-by-step guide for adding Clasp-it to each editor.",
+    "datePublished": "2026-04-09",
+    "dateModified": "2026-04-09",
+    "author": { "@type": "Person", "name": "Madhan Raj", "url": "https://madhans.world" },
+    "publisher": { "@type": "Organization", "name": "Clasp-it", "url": "https://claspit.dev", "logo": "https://claspit.dev/icon.png" },
+    "url": "https://claspit.dev/blog/how-to-use-mcp-with-cursor-windsurf",
+    "mainEntityOfPage": "https://claspit.dev/blog/how-to-use-mcp-with-cursor-windsurf"
+  }
+  </script>
+</head>
+<body>
+  <nav>
+    <a href="/" class="nav-logo">
+      <img src="/icon.png" alt="Clasp-it logo" />
+      Clasp-it
+    </a>
+    <span class="nav-blog"><a href="/blog">← Blog</a></span>
+  </nav>
+
+  <article class="article">
+    <div class="article-meta">
+      <span class="article-tag">Setup</span>
+      <span class="article-date">April 9, 2026</span>
+      <span class="article-read">4 min read</span>
+    </div>
+
+    <h1>How to Use MCP Servers with Cursor and Windsurf</h1>
+    <p class="article-lead">Most MCP guides focus on Claude Code, but both Cursor and Windsurf support the Model Context Protocol too. If you're using either editor, here's exactly how to connect an MCP server — using Clasp-it as the example.</p>
+
+    <h2>What Is an MCP Server?</h2>
+    <p>MCP (Model Context Protocol) is a standard that lets AI editors call external tools during a conversation. Instead of you manually providing context, the editor can query an MCP server and get structured data back — files, database records, browser state, API results, anything.</p>
+    <p>An MCP server is just a service that exposes tools following the MCP spec. Clasp-it's MCP server, for example, exposes tools like <code>get_element_context</code> and <code>list_recent_picks</code> — so your AI editor can read element context captured from your browser without you pasting anything.</p>
+
+    <h2>Adding Clasp-it to Cursor</h2>
+    <p>Cursor uses a JSON config file to register MCP servers. Open or create <code>~/.cursor/mcp.json</code>:</p>
+    <pre><code>{
+  "mcpServers": {
+    "clasp-it": {
+      "url": "https://claspit.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}</code></pre>
+    <p>Replace <code>YOUR_API_KEY</code> with the key shown in your Clasp-it extension settings.</p>
+    <p>Restart Cursor after saving. To confirm it's connected, open a chat and type: <em>"list my recent clasp-it picks"</em>. If the server is connected, Cursor will call the MCP tool and show the result.</p>
+
+    <h2>Adding Clasp-it to Windsurf</h2>
+    <p>Windsurf uses a similar JSON config. Open or create <code>~/.codeium/windsurf/mcp_config.json</code>:</p>
+    <pre><code>{
+  "mcpServers": {
+    "clasp-it": {
+      "serverUrl": "https://claspit.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}</code></pre>
+    <p>Note that Windsurf uses <code>serverUrl</code> instead of <code>url</code> — a small but important difference. Restart Windsurf after saving.</p>
+
+    <h2>Adding Clasp-it to Claude Code</h2>
+    <p>Claude Code uses a CLI command rather than a config file:</p>
+    <pre><code>claude mcp add --scope user --transport http clasp-it https://claspit.dev/mcp --header "Authorization: Bearer YOUR_API_KEY"</code></pre>
+    <p>The <code>--scope user</code> flag registers it globally across all your projects. Use <code>--scope project</code> if you want it only for the current directory.</p>
+
+    <h2>Verifying the Connection</h2>
+    <p>In any editor, once the MCP server is connected, you can verify it by asking the AI to list your recent picks:</p>
+    <pre><code>list my recent clasp-it picks</code></pre>
+    <p>If it's working, you'll see a list of your picks (or an empty list if you haven't picked anything yet). If you get an error about the tool not being found, double-check the config file path and restart the editor.</p>
+
+    <h2>Using Clasp-it After Setup</h2>
+    <p>Once connected, the workflow is the same across all three editors:</p>
+    <ol>
+      <li>Click the Clasp-it extension icon in Chrome</li>
+      <li>Click any element on any webpage</li>
+      <li>Type your instruction and hit send</li>
+      <li>Switch to your editor and say: <em>"fix all recent picks using clasp-it"</em></li>
+    </ol>
+    <p>Your AI editor will call the MCP tools, read the captured context, and apply fixes to your source files.</p>
+
+    <h2>Troubleshooting</h2>
+
+    <h3>The editor doesn't see the MCP server</h3>
+    <p>Make sure the config file is valid JSON (no trailing commas, correct nesting). Use a JSON validator if unsure. Restart the editor after any config change.</p>
+
+    <h3>Authentication errors</h3>
+    <p>If you see <em>"Invalid API key"</em> or <em>"Unauthorized"</em>, your API key may be wrong or the <code>Authorization: Bearer</code> prefix may be missing. Check the extension settings and copy the key exactly as shown.</p>
+
+    <h3>Tools show up but return no picks</h3>
+    <p>Make sure you've actually picked an element using the Chrome extension. Open the extension sidebar to confirm picks are appearing there first.</p>
+
+    <div class="article-cta">
+      <h3>Get started with Clasp-it</h3>
+      <p>Works with Claude Code, Cursor, and Windsurf. Free plan includes 10 picks/day.</p>
+      <a href="https://chromewebstore.google.com/detail/clasp-it/inelkjifjfaepgpdndcgdkpmlopggnlk" class="btn btn-primary" target="_blank" rel="noopener noreferrer">Install the extension</a>
+    </div>
+  </article>
+
+  <footer>
+    <p>© 2026 Clasp-it</p>
+    <div class="footer-links">
+      <a href="mailto:dev@madhans.world">dev@madhans.world</a>
+      <a href="/privacy">Privacy Policy</a>
+    </div>
+  </footer>
+</body>
+</html>

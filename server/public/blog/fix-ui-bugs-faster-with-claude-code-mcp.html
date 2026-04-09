@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/icon.png" />
+  <title>Fix UI Bugs Faster with Claude Code and MCP — Clasp-it</title>
+  <meta name="description" content="A practical workflow for catching, capturing, and fixing frontend bugs using Claude Code and MCP — without leaving your editor or breaking your flow." />
+  <meta property="og:title" content="Fix UI Bugs Faster with Claude Code and MCP" />
+  <meta property="og:description" content="A practical workflow for catching, capturing, and fixing frontend bugs using Claude Code and MCP — without leaving your editor or breaking your flow." />
+  <meta property="og:url" content="https://claspit.dev/blog/fix-ui-bugs-faster-with-claude-code-mcp" />
+  <meta property="og:type" content="article" />
+  <link rel="canonical" href="https://claspit.dev/blog/fix-ui-bugs-faster-with-claude-code-mcp" />
+  <link rel="stylesheet" href="/blog/blog.css" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Fix UI Bugs Faster with Claude Code and MCP",
+    "description": "A practical workflow for catching, capturing, and fixing frontend bugs using Claude Code and MCP — without leaving your editor or breaking your flow.",
+    "datePublished": "2026-04-09",
+    "dateModified": "2026-04-09",
+    "author": { "@type": "Person", "name": "Madhan Raj", "url": "https://madhans.world" },
+    "publisher": { "@type": "Organization", "name": "Clasp-it", "url": "https://claspit.dev", "logo": "https://claspit.dev/icon.png" },
+    "url": "https://claspit.dev/blog/fix-ui-bugs-faster-with-claude-code-mcp",
+    "mainEntityOfPage": "https://claspit.dev/blog/fix-ui-bugs-faster-with-claude-code-mcp"
+  }
+  </script>
+</head>
+<body>
+  <nav>
+    <a href="/" class="nav-logo">
+      <img src="/icon.png" alt="Clasp-it logo" />
+      Clasp-it
+    </a>
+    <span class="nav-blog"><a href="/blog">← Blog</a></span>
+  </nav>
+
+  <article class="article">
+    <div class="article-meta">
+      <span class="article-tag">Workflow</span>
+      <span class="article-date">April 9, 2026</span>
+      <span class="article-read">6 min read</span>
+    </div>
+
+    <h1>Fix UI Bugs Faster with Claude Code and MCP</h1>
+    <p class="article-lead">Frontend debugging has a context problem. You spot the bug in the browser, but the fix lives in your code. Getting Claude Code to understand exactly what's broken — and where — usually means a lot of manual work in between. Here's a workflow that closes that gap using MCP.</p>
+
+    <h2>Why UI Bug Fixing Is Still Slow</h2>
+    <p>Claude Code is excellent at writing and fixing code when it has good context. The problem is getting it that context. When you're debugging a UI issue:</p>
+    <ul>
+      <li>The bug is visible in the browser, not in the code</li>
+      <li>The relevant CSS might be spread across multiple files</li>
+      <li>The element might be deep in a component tree, with styles from several sources</li>
+      <li>There might be related console errors that hint at the real cause</li>
+    </ul>
+    <p>Without the right context, Claude Code's fixes often miss the mark — it guesses at the selector, it can't see the computed styles, and it doesn't know what the element actually looks like at runtime.</p>
+
+    <h2>The MCP Bridge</h2>
+    <p>MCP (Model Context Protocol) lets Claude Code read from external tools and services at the moment it's working on your code. Instead of you manually gathering context and pasting it in, Claude can call an MCP tool and get exactly what it needs.</p>
+    <p>Clasp-it is an MCP server that holds the context you captured from your browser. When you tell Claude to fix a bug, it calls <code>get_element_context</code> and gets back:</p>
+    <ul>
+      <li>The element's full HTML</li>
+      <li>Its unique CSS selector</li>
+      <li>All computed styles applied by the browser</li>
+      <li>Your description of the problem</li>
+      <li>React component name and props (if applicable)</li>
+      <li>Any console errors that appeared (Pro)</li>
+    </ul>
+    <p>With this, Claude can actually find the right component, the right CSS rule, and make a precise fix.</p>
+
+    <h2>The Workflow in Practice</h2>
+
+    <h3>1. Review the page, pick what's broken</h3>
+    <p>Open your app in Chrome with the Clasp-it extension active. Go through the page like a QA pass. When you see something wrong — a misaligned element, wrong spacing, broken layout — click it with Clasp-it. Type a short instruction: <em>"spacing between items should be 16px"</em>, <em>"this button is overlapping the text on mobile"</em>, <em>"font size is wrong here"</em>.</p>
+    <p>Don't stop to fix anything. Just pick and annotate. You can go through an entire page in a few minutes.</p>
+
+    <h3>2. Batch fix in Claude Code</h3>
+    <p>Switch to your terminal and tell Claude Code:</p>
+    <pre><code>fix all recent picks using clasp-it</code></pre>
+    <p>Claude will call <code>list_recent_picks</code> to see what's pending, then work through each one — calling <code>get_element_context_by_id</code> for each pick, reading the context, finding the right file, and applying the fix.</p>
+
+    <h3>3. Review, reload, repeat</h3>
+    <p>After Claude finishes, reload your browser. Check each fix. If something needs adjustment, pick the element again with updated instructions and run another fix cycle.</p>
+
+    <blockquote>
+      <p>This loop — pick, annotate, batch fix — typically cuts the back-and-forth between browser and editor by about 70%. Instead of context-switching for every individual bug, you do one sweep and one fix pass.</p>
+    </blockquote>
+
+    <h2>Targeting Specific Picks</h2>
+    <p>If you want Claude to fix just one thing rather than everything, you can reference it by ID. The extension shows pick IDs in the history sidebar. Tell Claude:</p>
+    <pre><code>use clasp-it to fix pick_3a9f2c1b — the button alignment issue</code></pre>
+    <p>Or let Claude use <code>get_element_context</code> (no ID) to grab the most recent pick only.</p>
+
+    <h2>Working with Console Errors</h2>
+    <p>Some UI bugs aren't CSS issues — they're JavaScript errors that affect rendering. With the Pro plan, Clasp-it captures console logs at the time you click an element. This means if a component is broken because of a failed API call or an unhandled exception, Claude Code gets that information alongside the HTML and CSS.</p>
+    <p>This is significantly more useful than copying errors manually because it ties the console output directly to the element you're looking at — Claude knows which component the error is coming from.</p>
+
+    <h2>Tips for Better Results</h2>
+
+    <h3>Be specific in your instructions</h3>
+    <p>Instead of "fix this", write "the gap between the icon and label should be 8px, currently looks like 20px". The more specific your instruction when you pick, the less ambiguity Claude has when it applies the fix.</p>
+
+    <h3>Pick the most specific element</h3>
+    <p>If a card is misaligned, click the card itself — not its container. Clasp-it captures parent context automatically, but the selector it generates will be for whatever you clicked.</p>
+
+    <h3>Use status tracking to stay organized</h3>
+    <p>The extension tracks each pick as <em>not started</em>, <em>in progress</em>, or <em>completed</em>. After Claude finishes a fix cycle, completed items are marked. This helps you track what's been addressed across multiple sessions.</p>
+
+    <div class="article-cta">
+      <h3>Try the workflow</h3>
+      <p>Free plan includes 10 picks/day — enough to try the full bug-fix loop.</p>
+      <a href="https://chromewebstore.google.com/detail/clasp-it/inelkjifjfaepgpdndcgdkpmlopggnlk" class="btn btn-primary" target="_blank" rel="noopener noreferrer">Install Clasp-it</a>
+    </div>
+
+    <h2>When This Workflow Works Best</h2>
+    <p>This approach is most effective when:</p>
+    <ul>
+      <li>You have multiple visual bugs to fix in one session</li>
+      <li>The bugs are in a codebase Claude Code already has context on (it knows your file structure)</li>
+      <li>The issues are CSS/layout-related rather than logic-related</li>
+      <li>You're working on a React or component-based frontend (component names help Claude navigate)</li>
+    </ul>
+    <p>It's less suited for bugs that require understanding complex business logic or tracing through multiple layers of state — those still benefit from a more conversational approach with Claude.</p>
+  </article>
+
+  <footer>
+    <p>© 2026 Clasp-it</p>
+    <div class="footer-links">
+      <a href="mailto:dev@madhans.world">dev@madhans.world</a>
+      <a href="/privacy">Privacy Policy</a>
+    </div>
+  </footer>
+</body>
+</html>

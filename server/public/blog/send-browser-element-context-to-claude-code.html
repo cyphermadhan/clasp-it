@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/icon.png" />
+  <title>How to Send Browser Element Context to Claude Code — Clasp-it</title>
+  <meta name="description" content="Stop copy-pasting HTML and CSS from DevTools. Learn how to send full element context — HTML, CSS, React props, console logs — directly to Claude Code in one click using Clasp-it and MCP." />
+  <meta property="og:title" content="How to Send Browser Element Context to Claude Code" />
+  <meta property="og:description" content="Stop copy-pasting HTML and CSS from DevTools. Send full element context to Claude Code in one click using Clasp-it and MCP." />
+  <meta property="og:url" content="https://claspit.dev/blog/send-browser-element-context-to-claude-code" />
+  <meta property="og:type" content="article" />
+  <link rel="canonical" href="https://claspit.dev/blog/send-browser-element-context-to-claude-code" />
+  <link rel="stylesheet" href="/blog/blog.css" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "How to Send Browser Element Context to Claude Code",
+    "description": "Stop copy-pasting HTML and CSS from DevTools. Learn how to send full element context — HTML, CSS, React props, console logs — directly to Claude Code in one click using Clasp-it and MCP.",
+    "datePublished": "2026-04-09",
+    "dateModified": "2026-04-09",
+    "author": { "@type": "Person", "name": "Madhan Raj", "url": "https://madhans.world" },
+    "publisher": { "@type": "Organization", "name": "Clasp-it", "url": "https://claspit.dev", "logo": "https://claspit.dev/icon.png" },
+    "url": "https://claspit.dev/blog/send-browser-element-context-to-claude-code",
+    "mainEntityOfPage": "https://claspit.dev/blog/send-browser-element-context-to-claude-code"
+  }
+  </script>
+</head>
+<body>
+  <nav>
+    <a href="/" class="nav-logo">
+      <img src="/icon.png" alt="Clasp-it logo" />
+      Clasp-it
+    </a>
+    <span class="nav-blog"><a href="/blog">← Blog</a></span>
+  </nav>
+
+  <article class="article">
+    <div class="article-meta">
+      <span class="article-tag">Guide</span>
+      <span class="article-date">April 9, 2026</span>
+      <span class="article-read">5 min read</span>
+    </div>
+
+    <h1>How to Send Browser Element Context to Claude Code</h1>
+    <p class="article-lead">If you use Claude Code for frontend work, you've probably hit this wall: you see a bug on a live page, open DevTools, and then spend the next few minutes manually copying HTML structure, CSS selectors, and computed styles into your AI chat. This guide shows a faster way — using Clasp-it and MCP to send the full context in one click.</p>
+
+    <h2>The Problem with Manual Copy-Paste</h2>
+    <p>Browser DevTools is powerful, but it wasn't built for AI-assisted workflows. When you want Claude Code to fix a layout bug or update a component's styles, you need to give it context — the actual HTML structure, what CSS is being applied, what the selector is, and ideally what errors showed up in the console.</p>
+    <p>Doing this manually means:</p>
+    <ul>
+      <li>Right-click → Inspect → copy the outer HTML</li>
+      <li>Open Computed tab → screenshot or copy relevant styles</li>
+      <li>Switch to Console → copy any relevant errors</li>
+      <li>Paste all of it into Claude Code with a description of the problem</li>
+      <li>Wait for the fix, then manually apply it to your source files</li>
+    </ul>
+    <p>Each step breaks your focus. And you repeat it for every element you want to fix.</p>
+
+    <h2>What Clasp-it Does Instead</h2>
+    <p>Clasp-it is a Chrome extension that pairs with an MCP server. When you click an element, it captures everything Claude Code needs and makes it available via MCP — the Model Context Protocol that AI editors use to read external context.</p>
+    <p>What gets captured in one click:</p>
+    <ul>
+      <li><strong>HTML structure</strong> — the element's outer HTML and its immediate parent</li>
+      <li><strong>CSS selector</strong> — the most specific unique selector for the element</li>
+      <li><strong>Computed styles</strong> — the final styles actually applied by the browser</li>
+      <li><strong>React props</strong> — if the element is part of a React component (Pro)</li>
+      <li><strong>Console logs</strong> — any errors or warnings in the browser console (Pro)</li>
+      <li><strong>Network requests</strong> — recent API calls and their status (Pro)</li>
+      <li><strong>Screenshot</strong> — a visual snapshot of the element in context (Pro)</li>
+    </ul>
+
+    <h2>Setup: Two Minutes</h2>
+
+    <h3>Step 1 — Install the Chrome extension</h3>
+    <p>Install Clasp-it from the Chrome Web Store. Sign up with your email and you'll get a free API key automatically.</p>
+
+    <h3>Step 2 — Add the MCP server to Claude Code</h3>
+    <p>Run this in your terminal:</p>
+    <pre><code>claude mcp add --scope user --transport http clasp-it https://claspit.dev/mcp --header "Authorization: Bearer YOUR_API_KEY"</code></pre>
+    <p>Replace <code>YOUR_API_KEY</code> with the key shown in your extension settings. This registers Clasp-it as a permanent MCP server — you only need to do this once.</p>
+
+    <h3>Step 3 — Pick an element</h3>
+    <p>Click the Clasp-it icon in your toolbar to activate the picker. Hover over any element on any page — you'll see it highlight. Click it. A small dialog appears where you type your instruction: <em>"make this button larger"</em>, <em>"fix the spacing between these items"</em>, <em>"why is this text overflowing?"</em>.</p>
+    <p>Hit send. The pick is stored on the server and associated with your API key.</p>
+
+    <h3>Step 4 — Tell Claude Code to fix it</h3>
+    <p>Switch to Claude Code and type:</p>
+    <pre><code>fix all recent picks using clasp-it</code></pre>
+    <p>Claude Code calls the MCP tool, reads the full context you captured, locates the relevant files in your codebase, and applies the changes. You can also target a specific pick by ID if you want to fix one thing at a time.</p>
+
+    <h2>Picking Multiple Elements at Once</h2>
+    <p>You can pick as many elements as you want before switching to Claude Code. Each pick is stored separately with its own ID. When you tell Claude to "fix all recent picks", it processes them in sequence — reading the HTML, CSS, and your instruction for each one, then editing your source files.</p>
+    <p>This is particularly useful when you're implementing a design review: go through the page, pick everything that looks wrong, then let Claude fix the whole batch in one go.</p>
+
+    <h2>Checking Pick Status</h2>
+    <p>The extension sidebar shows the status of every pick: <em>not started</em>, <em>in progress</em>, or <em>completed</em>. Claude Code automatically updates the status as it works, so you can see exactly what's been fixed and what's still pending.</p>
+
+    <div class="article-cta">
+      <h3>Try it free</h3>
+      <p>10 picks per day on the free plan. No credit card required.</p>
+      <a href="https://chromewebstore.google.com/detail/clasp-it/inelkjifjfaepgpdndcgdkpmlopggnlk" class="btn btn-primary" target="_blank" rel="noopener noreferrer">Add to Chrome</a>
+    </div>
+
+    <h2>Common Questions</h2>
+
+    <h3>Does it work on any website?</h3>
+    <p>Yes. Clasp-it works on any page you can open in Chrome, including localhost, staging environments, and production sites.</p>
+
+    <h3>What if the element doesn't have a unique selector?</h3>
+    <p>Clasp-it generates the most specific selector it can, using IDs, class names, and structural position. For React apps with dynamic class names (like CSS Modules or Tailwind JIT), it also captures the component name and props to help Claude identify the right file.</p>
+
+    <h3>Does Claude Code need special permissions?</h3>
+    <p>No. The MCP server is hosted at <code>claspit.dev/mcp</code>. Claude Code connects to it over HTTPS using your API key. There's no local process to run and no port to open.</p>
+  </article>
+
+  <footer>
+    <p>© 2026 Clasp-it</p>
+    <div class="footer-links">
+      <a href="mailto:dev@madhans.world">dev@madhans.world</a>
+      <a href="/privacy">Privacy Policy</a>
+    </div>
+  </footer>
+</body>
+</html>
