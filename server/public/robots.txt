@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://claspit.dev/sitemap.xml
