@@ -1,7 +1,5 @@
 [build]
 builder = "NIXPACKS"
-nixpacksPlan = ""
-buildCommand = "cd website && npm ci && npm run build && cp -r dist ../server/public"
 
 [deploy]
 startCommand = "node server/index.js"
