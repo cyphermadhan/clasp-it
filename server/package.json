@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "build": "cd ../website && npm ci && npm run build && cp -r dist ../server/public",
+    "build": "pwd && ls .. && cd ../website && npm ci && npm run build && cp -r dist ../server/public",
     "build:extension": "cd .. && zip -r server/public/downloads/clasp-it-extension.zip extension/ -x '*.DS_Store' -x '__MACOSX/*' -x '*.git*'"
   },
   "dependencies": {
