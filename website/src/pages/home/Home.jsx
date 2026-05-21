@@ -197,7 +197,7 @@ export default function Home() {
             <p className="plan-name">Pro</p>
             <p className="plan-price">$2.99 <span>/mo</span></p>
             <p className="plan-desc">Unlimited picks + full context capture. Or save 33% at $24/yr.</p>
-            <a href="/upgrade" id="pro-cta" className="plan-cta plan-cta-pro" onClick={() => observe.track('upgrade_cta_clicked')}>Get Pro — $2.99/mo</a>
+            <a href="/upgrade" id="pro-cta" className="plan-cta plan-cta-pro" onClick={() => observe.track('upgrade_cta_clicked')}>Get Pro</a>
             <hr className="plan-divider" />
             <ul className="plan-features">
               <li>Everything in Free</li>

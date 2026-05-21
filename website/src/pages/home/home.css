@@ -215,7 +215,7 @@ code {
 
 /* ── Pricing ── */
 .pricing {
-  max-width: 680px;
+  max-width: 1000px;
   margin: 0 auto;
   padding: 0 24px 96px;
   text-align: center;
@@ -234,29 +234,34 @@ code {
 .pricing-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
+  gap: 16px;
   text-align: left;
+  align-items: stretch;
 }
 
 .plan {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 28px;
+  padding: 32px 28px;
   position: relative;
-  transition: box-shadow 0.2s;
+  transition: box-shadow 0.2s, transform 0.2s;
+  display: flex;
+  flex-direction: column;
 }
 
 .plan:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
 
 .plan.pro {
   border-color: var(--accent);
-  background: linear-gradient(135deg, rgba(198, 97, 63, 0.04) 0%, rgba(198, 97, 63, 0.01) 100%);
-  box-shadow: 0 0 0 1px rgba(198, 97, 63, 0.15), 0 4px 24px rgba(198, 97, 63, 0.08);
+  background: linear-gradient(135deg, rgba(198, 97, 63, 0.06) 0%, rgba(198, 97, 63, 0.015) 100%);
+  box-shadow: 0 0 0 1px rgba(198, 97, 63, 0.18), 0 6px 28px rgba(198, 97, 63, 0.10);
+  transform: translateY(-4px);
 }
 
 .plan.pro:hover {
-  box-shadow: 0 0 0 1px rgba(198, 97, 63, 0.25), 0 8px 32px rgba(198, 97, 63, 0.12);
+  box-shadow: 0 0 0 1px rgba(198, 97, 63, 0.28), 0 12px 36px rgba(198, 97, 63, 0.14);
+  transform: translateY(-6px);
 }
 
 .plan-badge {
@@ -290,11 +295,11 @@ code {
 .plan.pro .plan-name { color: var(--accent); }
 
 .plan-price {
-  font-size: 36px;
+  font-size: 40px;
   font-weight: 700;
   letter-spacing: -1.5px;
   color: var(--text);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   line-height: 1;
 }
 
@@ -305,29 +310,53 @@ code {
   letter-spacing: 0;
 }
 
-.plan-desc { font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5; }
+.plan-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+  line-height: 1.55;
+  min-height: 60px;
+}
 
 .plan-cta {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   width: 100%;
-  padding: 10px 18px;
-  border-radius: 8px;
+  padding: 12px 20px;
+  border-radius: 10px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   border: none;
-  margin-bottom: 20px;
-  transition: background 0.15s, opacity 0.15s;
+  margin-bottom: 24px;
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
   text-align: center;
   font-family: inherit;
+  white-space: nowrap;
 }
 
 .plan-cta-free { background: rgba(0,0,0,0.05); color: var(--text); }
 .plan-cta-free:hover { background: rgba(0,0,0,0.09); }
-.plan-cta-pro { background: var(--accent); color: #fff; }
-.plan-cta-pro:hover { background: var(--accent-dark); }
+
+.plan-cta-pro {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(198, 97, 63, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+.plan-cta-pro:hover {
+  background: var(--accent-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(198, 97, 63, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+.plan-cta-pro:active { transform: translateY(0); }
+.plan-cta-pro::after {
+  content: '→';
+  font-weight: 400;
+  transition: transform 0.15s;
+}
+.plan-cta-pro:hover::after { transform: translateX(2px); }
 
 .plan.max {
   background: linear-gradient(135deg, rgba(115, 114, 108, 0.04) 0%, rgba(115, 114, 108, 0.01) 100%);
@@ -350,14 +379,15 @@ code {
 
 .plan-divider { border: none; border-top: 1px solid var(--border); margin-bottom: 16px; }
 
-.plan-features { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.plan-features { list-style: none; display: flex; flex-direction: column; gap: 10px; }
 
 .plan-features li {
   font-size: 13px;
   color: var(--text-secondary);
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.45;
 }
 
 .plan-features li::before {
@@ -370,6 +400,7 @@ code {
   background-repeat: no-repeat;
   background-position: center;
   flex-shrink: 0;
+  margin-top: 3px;
 }
 
 .plan-features li.muted { color: rgba(115, 114, 108, 0.5); }
