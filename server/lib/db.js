@@ -84,6 +84,7 @@ export async function initSchema() {
 
     CREATE INDEX IF NOT EXISTS attachments_pick_id_idx ON attachments(pick_id);
     CREATE INDEX IF NOT EXISTS attachments_user_id_idx ON attachments(user_id);
+    CREATE INDEX IF NOT EXISTS attachments_created_at_idx ON attachments(created_at);
   `);
 
   console.log('[db] Schema initialised');

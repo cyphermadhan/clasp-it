@@ -16,6 +16,7 @@ import authRouter from './routes/auth.js';
 
 import { redis } from './lib/storage.js';
 import { initSchema } from './lib/db.js';
+import { cleanupOldAttachments } from './lib/cleanup.js';
 
 // ─── App setup ────────────────────────────────────────────────────────────────
 
@@ -91,3 +92,22 @@ app.listen(PORT, () => {
   console.log(`[server] clasp-it listening on port ${PORT}`);
   console.log(`[server] Storage: ${redis ? 'Redis' : 'in-memory (dev)'}`);
 });
+
+// ─── Scheduled cleanup ────────────────────────────────────────────────────────
+// Sweep R2 + attachments table for picks older than CLEANUP_OLDER_THAN_DAYS.
+// Runs once on boot (after a 60s grace) and then every CLEANUP_INTERVAL_HOURS.
+
+const CLEANUP_OLDER_THAN_DAYS = parseInt(process.env.CLEANUP_OLDER_THAN_DAYS ?? '28', 10);
+const CLEANUP_INTERVAL_HOURS = parseInt(process.env.CLEANUP_INTERVAL_HOURS ?? '24', 10);
+const CLEANUP_INTERVAL_MS = CLEANUP_INTERVAL_HOURS * 60 * 60 * 1000;
+
+function runCleanup() {
+  cleanupOldAttachments({ olderThanDays: CLEANUP_OLDER_THAN_DAYS })
+    .catch((err) => console.error('[cleanup] run failed:', err.message));
+}
+
+// 60s grace lets DB connections settle and avoids competing with start-up
+// traffic. After that, run every CLEANUP_INTERVAL_HOURS.
+setTimeout(runCleanup, 60 * 1000);
+setInterval(runCleanup, CLEANUP_INTERVAL_MS);
+console.log(`[cleanup] Scheduled: every ${CLEANUP_INTERVAL_HOURS}h, removing attachments older than ${CLEANUP_OLDER_THAN_DAYS}d`);
