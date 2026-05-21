@@ -630,6 +630,19 @@
     }
     .sp-claude-tip:hover { background: var(--border-faint); border-color: var(--border-medium); }
 
+    /* ── Rolloff hint (shown when active picks > 10) ── */
+    .sp-rolloff-hint {
+      margin: 0 14px 6px;
+      padding: 7px 10px;
+      background: transparent;
+      font-size: 11px;
+      color: var(--text-tertiary);
+      line-height: 1.4;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+    }
+
     /* ── MCP setup ── */
     .sp-mcp-setup {
       border: 0.5px solid var(--border-subtle);
@@ -795,6 +808,10 @@
          data-copy="fix all recent picks using clasp-it" title="Click to copy">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <span>Open your AI editor and say<br><strong>"fix all recent picks using clasp-it"</strong></span>
+    </div>
+    <div id="sp-rolloff-hint" class="sp-rolloff-hint" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;flex-shrink:0;margin-top:2px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span>Your AI sees only your latest 10 picks. Older ones roll off — keeps prompts focused and saves tokens.</span>
     </div>
     <div id="sp-history-empty" class="sp-history-empty">No picks yet.<br>Click the button above to get started.</div>
     <div id="sp-history-list"></div>

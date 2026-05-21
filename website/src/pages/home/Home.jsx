@@ -226,6 +226,37 @@ export default function Home() {
         </div>
       </section>
 
+      {/* FAQ */}
+      <section className="faq">
+        <h2>FAQ</h2>
+        <div className="faq-list">
+          <details>
+            <summary>What is Clasp-it?</summary>
+            <p>A Chrome extension and MCP server that lets you click any element on any webpage and instantly send its full context — HTML structure, CSS selector, computed styles, React props, console logs, network requests, screenshots — to your AI editor (Claude Code, Cursor, Windsurf) via the Model Context Protocol.</p>
+          </details>
+          <details>
+            <summary>How is Clasp-it different from browser DevTools?</summary>
+            <p>DevTools makes you copy-paste HTML, CSS, and context manually into your AI chat. Clasp-it captures all of it in one click — including a screenshot, computed styles, React props, console logs, and recent network requests — and delivers it to your AI editor's context window via MCP, so your AI can edit your actual code files.</p>
+          </details>
+          <details>
+            <summary>Does Clasp-it work with Cursor and Windsurf?</summary>
+            <p>Yes. Clasp-it exposes a standard MCP server at <code>https://claspit.dev/mcp</code>. Any AI editor that supports MCP over HTTP — Claude Code, Cursor, Windsurf — can connect. Setup commands for each are inside the extension's settings panel.</p>
+          </details>
+          <details>
+            <summary>How many picks can I send to my AI in one go?</summary>
+            <p>Up to <strong>10 picks at a time</strong>. This is an intentional limit — it keeps your AI editor focused on a tight batch it can reason about end-to-end, and avoids burning a large chunk of your AI tokens on a single mega-prompt. Once earlier picks are marked completed, they roll off and you can queue up the next 10. For most fix-everything sessions, 10 is comfortably more than enough.</p>
+          </details>
+          <details>
+            <summary>What MCP tools does Clasp-it provide?</summary>
+            <p>Five: <code>get_element_context</code> (latest pick), <code>get_element_context_by_id</code> (specific pick), <code>list_recent_picks</code> (last N picks), <code>update_pick_status</code> (not_started / in_progress / completed), and <code>clear_context</code> (clear all picks).</p>
+          </details>
+          <details>
+            <summary>Is there a free plan?</summary>
+            <p>Yes. Free includes 10 element picks per day with DOM, selector, and computed styles. Pro ($2.99/month or $24/year) adds unlimited picks plus screenshots, console logs, network requests, React props, and 30 picks-with-attachments per month.</p>
+          </details>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer>
         <p>© 2026 Clasp-it</p>

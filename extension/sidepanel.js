@@ -753,6 +753,16 @@ function renderHistory() {
   const tip = document.getElementById("sp-claude-tip");
   if (tip) tip.style.display = app.history.some(h => h.status !== "completed") ? "" : "none";
 
+  // Rolloff hint — server's MCP ring buffer caps at 10 active picks. When
+  // the user has more than 10 in-flight (not_started + in_progress), the
+  // oldest ones aren't visible to their AI. Surface this so they aren't
+  // surprised when the AI fixes 10 things instead of 12.
+  const rolloff = document.getElementById("sp-rolloff-hint");
+  if (rolloff) {
+    const active = app.history.filter(h => h.status !== "completed").length;
+    rolloff.style.display = active > 10 ? "" : "none";
+  }
+
   for (const item of app.history) {
     const statusLabel = { not_started: "Waiting", in_progress: "In progress", completed: "Done" }[item.status] || "Waiting";
     const statusClass = item.status || "not_started";
