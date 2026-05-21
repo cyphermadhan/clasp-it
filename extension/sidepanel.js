@@ -61,6 +61,10 @@ function showScreen(name) {
   if (name === "settings") renderSettings();
 }
 
+// ── Edit pick state ──────────────────────────────────────────────────────────
+
+let editingItem = null; // history item being edited (snapshot)
+
 // ── Init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
@@ -767,6 +771,18 @@ function renderHistory() {
     row.appendChild(body);
 
     if (canDelete) {
+      // Edit (pencil) — only available while pick can still be edited (i.e. not pulled)
+      if (item.pickId) {
+        const editBtn = document.createElement("button");
+        editBtn.className = "sp-history-edit-btn";
+        editBtn.title = "Edit prompt";
+        editBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>`;
+        editBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          startEdit(item);
+        });
+        row.appendChild(editBtn);
+      }
       const btn = document.createElement("button");
       btn.className = "sp-delete-btn";
       btn.title = "Delete";
@@ -995,6 +1011,100 @@ async function renderSettings() {
     bonusEl.textContent = `+${q.bonus}`;
   }
 }
+
+// ── Edit pick ────────────────────────────────────────────────────────────────
+
+function startEdit(item) {
+  if (!item || item.status !== "not_started" || !item.pickId) return;
+  editingItem = item;
+  document.getElementById("sp-edit-element-label").textContent = item.elementLabel || "element";
+  document.getElementById("sp-edit-prompt").value = item.prompt || "";
+  setEditError("");
+  showScreen("edit");
+  // Focus + place cursor at the end of any existing prompt
+  const ta = document.getElementById("sp-edit-prompt");
+  ta.focus();
+  ta.selectionStart = ta.selectionEnd = ta.value.length;
+}
+
+function setEditError(msg) {
+  const el = document.getElementById("sp-edit-error");
+  if (el) el.textContent = msg || "";
+}
+
+async function saveEdit() {
+  if (!editingItem) return;
+  const newPrompt = document.getElementById("sp-edit-prompt").value;
+  const saveBtn = document.getElementById("sp-edit-save-btn");
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Saving…"; }
+  setEditError("");
+
+  try {
+    const res = await fetch(`${SERVER_URL}/element-context/${editingItem.pickId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(app.apiKey ? { "Authorization": `Bearer ${app.apiKey}` } : {}),
+      },
+      body: JSON.stringify({ prompt: newPrompt }),
+    });
+
+    if (res.status === 409) {
+      const data = await res.json().catch(() => ({}));
+      // Pick was pulled by Claude between the time the user opened the modal
+      // and clicked save. Update our local status, then bounce back to main.
+      const newStatus = data.status || "in_progress";
+      app.history = app.history.map(h =>
+        h.id === editingItem.id ? { ...h, status: newStatus } : h,
+      );
+      await storageSet({ clasp_history: app.history });
+      setEditError("Already pulled by Claude — closing.");
+      setTimeout(() => {
+        editingItem = null;
+        showScreen("main");
+      }, 900);
+      return;
+    }
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setEditError(data.error || `Save failed (${res.status})`);
+      return;
+    }
+
+    // Success — patch local history with new prompt
+    app.history = app.history.map(h =>
+      h.id === editingItem.id ? { ...h, prompt: newPrompt } : h,
+    );
+    await storageSet({ clasp_history: app.history });
+    editingItem = null;
+    showScreen("main");
+  } catch (err) {
+    setEditError(err.message || "Network error");
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "Save"; }
+  }
+}
+
+document.getElementById("sp-edit-back-btn")?.addEventListener("click", () => {
+  editingItem = null;
+  showScreen("main");
+});
+document.getElementById("sp-edit-cancel-btn")?.addEventListener("click", () => {
+  editingItem = null;
+  showScreen("main");
+});
+document.getElementById("sp-edit-save-btn")?.addEventListener("click", saveEdit);
+document.getElementById("sp-edit-prompt")?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+    e.preventDefault();
+    saveEdit();
+  }
+  if (e.key === "Escape") {
+    editingItem = null;
+    showScreen("main");
+  }
+});
 
 // ── MCP setup toggle ─────────────────────────────────────────────────────────
 

@@ -411,6 +411,53 @@
     .sp-status-line.ok  { color: var(--text-success); }
     .sp-status-line.err { color: var(--text-danger); }
 
+    /* ── Edit pick ── */
+    #screen-edit { gap: 12px; padding: 14px; }
+
+    .sp-edit-header {
+      display: flex; align-items: center; gap: 6px; margin-bottom: 2px;
+    }
+    .sp-edit-title { font-size: 15px; font-weight: 600; }
+
+    .sp-edit-element {
+      font-family: var(--font-mono);
+      font-size: 12px; color: var(--text-secondary);
+      background: var(--bg-secondary);
+      padding: 6px 10px; border-radius: var(--radius-md);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .sp-edit-textarea {
+      width: 100%; min-height: 96px; resize: vertical;
+      padding: 10px 12px; font: inherit; font-size: 13px;
+      color: var(--text-primary); background: var(--bg-primary);
+      border: 0.5px solid var(--border-medium);
+      border-radius: var(--radius-md); outline: none; box-sizing: border-box;
+    }
+    .sp-edit-textarea:focus { border-color: var(--text-primary); }
+
+    .sp-edit-error {
+      font-size: 12px; color: var(--text-danger);
+      min-height: 14px; line-height: 1.4;
+    }
+
+    .sp-edit-actions {
+      display: flex; gap: 8px;
+    }
+    .sp-edit-actions .sp-btn { flex: 1; }
+
+    .sp-history-edit-btn {
+      flex-shrink: 0; background: none; border: none; cursor: pointer;
+      color: var(--text-ghost); padding: 2px 5px;
+      border-radius: var(--radius-xs); line-height: 1; margin-top: 2px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.1s, color 0.1s;
+    }
+    .sp-history-edit-btn:hover {
+      background: var(--bg-secondary); color: var(--text-primary);
+    }
+    .sp-history-edit-btn svg { width: 13px; height: 13px; }
+
     /* ── Settings ── */
     #screen-settings { gap: 14px; padding: 14px; }
 
@@ -909,6 +956,29 @@
   <div class="sp-spacer"></div>
 
   <button id="sp-signout-btn" class="sp-btn sp-btn-danger">Sign out</button>
+</div>
+
+<!-- ── Edit pick screen ── -->
+<div id="screen-edit" class="sp-screen">
+  <div class="sp-edit-header">
+    <button id="sp-edit-back-btn" class="sp-icon-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+    </button>
+    <span class="sp-edit-title">Edit pick</span>
+  </div>
+
+  <div id="sp-edit-element-label" class="sp-edit-element">—</div>
+
+  <textarea id="sp-edit-prompt" class="sp-edit-textarea" placeholder="What to change?"></textarea>
+
+  <div id="sp-edit-error" class="sp-edit-error"></div>
+
+  <div class="sp-edit-actions">
+    <button id="sp-edit-cancel-btn" class="sp-btn sp-btn-secondary">Cancel</button>
+    <button id="sp-edit-save-btn" class="sp-btn sp-btn-primary">Save</button>
+  </div>
 </div>
 
 <script src="sidepanel.js"></script>
