@@ -187,7 +187,14 @@ function stopDevicePoll() {
 async function pollDevice() {
   if (!app.deviceId) return;
   try {
-    const res = await fetch(`${SERVER_URL}/auth/poll/${app.deviceId}`);
+    // POST + body (deviceId in URL would land in proxy/CDN access logs and
+    // the server consumes the record on first successful poll). The legacy
+    // GET endpoint still exists for older extension versions on CWS.
+    const res = await fetch(`${SERVER_URL}/auth/poll`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId: app.deviceId }),
+    });
     if (!res.ok) return;
     const data = await res.json();
     if (data.status === "verified" && data.apiKey) {

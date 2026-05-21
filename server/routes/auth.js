@@ -18,6 +18,7 @@ import { requireSession, requireApiKey, generateApiKey, hashKey, createSession, 
 import {
   storeDeviceVerification,
   claimDeviceVerification,
+  consumeDeviceVerification,
   hasDeviceVerification,
   storePendingApiKey,
   getPendingApiKey,
@@ -453,6 +454,89 @@ router.get('/poll/:deviceId', pollLimit, async (req, res) => {
 
   } catch (err) {
     console.error('[auth] poll error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── POST /auth/poll ──────────────────────────────────────────────────────────
+// Replacement for GET /auth/poll/:deviceId. Two security improvements:
+//   1. deviceId is in the request body, not the URL — so it doesn't leak
+//      into Railway/Cloudflare access logs that record paths.
+//   2. The device record is consumed (atomically) on the first successful
+//      read. Replaying the same deviceId after a successful poll returns
+//      "expired", closing the replay window the original GET endpoint had.
+//
+// The legacy GET endpoint above is kept unchanged for back-compat with
+// Chrome Web Store extensions still on v1.0.1.
+//
+// Recovery (extension fails to save the key after a successful poll):
+// the magic_links + pending_key DB-backed fallback below still works
+// because we only consume the deviceId binding, not the underlying key
+// record. Same recovery path the GET handler uses.
+
+router.post('/poll', pollLimit, async (req, res) => {
+  const deviceId = req.body?.deviceId;
+  if (!deviceId || typeof deviceId !== 'string') {
+    return res.status(400).json({ error: 'deviceId required in request body' });
+  }
+
+  try {
+    // 1. Atomic GETDEL — if the device record exists, return + remove it.
+    const verified = await consumeDeviceVerification(deviceId);
+    if (verified) {
+      return res.json({ status: 'verified', apiKey: verified.apiKey, plan: verified.plan, email: verified.email });
+    }
+
+    if (!pool) return res.json({ status: 'pending' });
+
+    // 2. No live device record. Could be: (a) never created (poll before
+    //    signup), (b) already consumed by an earlier successful poll, or
+    //    (c) Redis blip. Look up the magic link to disambiguate.
+    const result = await pool.query(
+      `SELECT ml.expires_at, ml.used, ml.user_id, u.email, u.plan
+       FROM magic_links ml
+       JOIN users u ON u.id = ml.user_id
+       WHERE ml.device_id = $1
+       ORDER BY ml.expires_at DESC LIMIT 1`,
+      [deviceId],
+    );
+
+    if (result.rows.length === 0) return res.json({ status: 'expired' });
+
+    const { expires_at, used, user_id, email, plan } = result.rows[0];
+
+    // 3. Link was clicked. Check pending-key cache (recovery path for an
+    //    extension that polled, got a 200, but failed to persist before
+    //    retrying). Note: we do NOT re-populate the device record here —
+    //    leave it consumed so an attacker replaying the same deviceId
+    //    can't pull the key directly.
+    if (used) {
+      try {
+        const pending = await getPendingApiKey(user_id);
+        if (pending) {
+          return res.json({ status: 'verified', apiKey: pending.apiKey, plan: pending.plan, email: pending.email });
+        }
+
+        // Cached key is gone too — issue a new one. Should be rare.
+        const { raw, hash, prefix } = generateApiKey();
+        await pool.query(
+          `INSERT INTO api_keys (user_id, key_hash, key_prefix, label) VALUES ($1, $2, $3, $4)`,
+          [user_id, hash, prefix, 'Extension'],
+        );
+        const newPayload = { apiKey: raw, plan, email };
+        await storePendingApiKey(user_id, newPayload);
+        return res.json({ status: 'verified', apiKey: raw, plan, email });
+      } catch (err) {
+        console.error('[auth] POST poll fallback key creation failed:', err.message);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    }
+
+    // 4. Link not clicked yet
+    if (new Date() > new Date(expires_at)) return res.json({ status: 'expired' });
+    return res.json({ status: 'pending' });
+  } catch (err) {
+    console.error('[auth] POST poll error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

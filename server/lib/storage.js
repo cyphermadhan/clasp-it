@@ -337,7 +337,9 @@ export async function storeDeviceVerification(deviceId, payload) {
 }
 
 /**
- * Retrieve and immediately delete a device verification (one-time claim).
+ * Retrieve a device verification WITHOUT consuming it. Used by the legacy
+ * GET /auth/poll/:deviceId endpoint, which polls repeatedly during the
+ * verify window.
  * @returns {Promise<object|null>}
  */
 export async function claimDeviceVerification(deviceId) {
@@ -357,6 +359,38 @@ export async function claimDeviceVerification(deviceId) {
     // Don't delete — let TTL handle cleanup
     return deserialize(entry.value);
   }
+}
+
+/**
+ * Atomically retrieve AND delete a device verification record. One-shot —
+ * subsequent calls for the same deviceId return null even if the TTL hasn't
+ * elapsed. Used by the new POST /auth/poll endpoint to close the replay
+ * window the audit flagged. Recovery (e.g. extension fails to save the
+ * key after a successful poll) flows through the magic_links + pending_key
+ * fallback path in routes/auth.js.
+ *
+ * Note: the magic_links and pending_key entries are NOT consumed here; only
+ * the deviceId binding is.
+ *
+ * @returns {Promise<object|null>}
+ */
+export async function consumeDeviceVerification(deviceId) {
+  const redisKey = `device:${deviceId}`;
+  if (redis) {
+    // GETDEL is a single round-trip atomic op (Redis 6.2+; Upstash supports it)
+    const value = await redis.getdel(redisKey);
+    if (!value) return null;
+    return deserialize(value);
+  }
+  const entry = deviceVerifyStore.get(deviceId);
+  if (!entry) return null;
+  if (Date.now() > entry.expires) {
+    deviceVerifyStore.delete(deviceId);
+    return null;
+  }
+  // Single-process, no race possible
+  deviceVerifyStore.delete(deviceId);
+  return deserialize(entry.value);
 }
 
 // ─── Pending API key cache (keyed by userId, 15-min TTL) ─────────────────────

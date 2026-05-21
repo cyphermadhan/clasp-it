@@ -63,6 +63,31 @@ In one commit:
   Verified post-upgrade: server boots, MCP `tools/list` returns all 5
   tools, transport works.
 
+### Round 2C — `/auth/poll` redesign (commit pending — this round)
+
+- **#1 `/auth/poll/:deviceId` raw-key replay vector → addressed via additive POST endpoint.**
+
+  Two improvements, both behind a new `POST /auth/poll`:
+  1. `deviceId` moved from URL path to request body — proxy/CDN access
+     logs no longer record it.
+  2. Atomic `GETDEL` on the device record on first successful poll
+     (`consumeDeviceVerification` helper). Replaying the same deviceId
+     post-success returns `pending` (record gone), even if the 15-min
+     TTL hasn't elapsed.
+
+  Recovery path still works (`magic_links` table + `pending_key:userId`
+  cache cover the case where extension reads the key but fails to save).
+
+  **Back-compat:** the legacy `GET /auth/poll/:deviceId` is unchanged.
+  Chrome Web Store v1.0.1 users keep working as before. Local extension
+  v1.1.0 now uses POST. Once CWS rolls forward, the GET endpoint can be
+  retired.
+
+  Verified locally:
+  - POST first call returns key
+  - POST replay → `pending` (consumed)
+  - GET endpoint still works as legacy clients expect
+
 ### Round 2B — rate limiting (commit `1633e16`)
 
 - **#3 Rate limiting on every endpoint that does real work.**
@@ -116,7 +141,7 @@ where they appear in the main list.
 
 ## 🔴 Higher-priority items (worth acting on)
 
-### 1. `/auth/poll/:deviceId` is an unauthenticated raw-key dispenser
+### ~~1. `/auth/poll/:deviceId` is an unauthenticated raw-key dispenser~~ ✅ FIXED — see Round 2C below
 `server/routes/auth.js:385`. The endpoint takes a deviceId in the URL and returns the **raw `cit_…` API key** in plaintext. Mitigations exist (UUIDv4 randomness, 15-min Redis TTL), but:
 
 - DeviceId is in the URL path, so it lands in **any** access log Railway/Cloudflare/proxies keep
@@ -240,7 +265,7 @@ For balance — these came up clean:
 
 | # | Severity | Item | Status |
 |---|---|---|---|
-| 1 | 🔴 medium | `/auth/poll` returns raw API key + deviceId in URL | ⏳ open |
+| 1 | 🔴 medium | `/auth/poll` returns raw API key + deviceId in URL | ✅ shipped (Round 2C) |
 | 2 | 🔴 medium | 6 npm vulns from MCP SDK transitive deps | ✅ shipped `022324e` |
 | 3 | 🟡 low | No rate limit on most endpoints | ✅ shipped `1633e16` |
 | 4 | 🟡 low | 1 MB JSON limit may reject Pro screenshots | ✅ shipped `bb1516e` |
@@ -251,7 +276,6 @@ For balance — these came up clean:
 | 9 | 🟡 ops | Graceful SIGTERM handler | ✅ shipped `bb1516e` |
 | 10 | 🟢 ops | PII (emails) in production logs | ✅ shipped `bb1516e` |
 
-**8 of 10 ranked items shipped.** Two open: `/auth/poll` redesign (real
-attack-surface fix; deferred because it requires a coordinated extension
-change) and the `bp_api_key` storage prefix migration (cosmetic, deferred
-to pair with another extension change).
+**9 of 10 ranked items shipped.** One open: the `bp_api_key` storage
+prefix migration (cosmetic, deferred to pair with another extension
+change).
