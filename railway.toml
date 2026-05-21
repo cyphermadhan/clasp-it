@@ -2,5 +2,5 @@
 builder = "NIXPACKS"
 
 [deploy]
-startCommand = "node server/index.js"
+startCommand = "node index.js"
 restartPolicyType = "ON_FAILURE"
