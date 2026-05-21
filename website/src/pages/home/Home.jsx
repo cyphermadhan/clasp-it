@@ -247,6 +247,10 @@ export default function Home() {
             <p>Up to <strong>10 picks at a time</strong>. This is an intentional limit — it keeps your AI editor focused on a tight batch it can reason about end-to-end, and avoids burning a large chunk of your AI tokens on a single mega-prompt. Once earlier picks are marked completed, they roll off and you can queue up the next 10. For most fix-everything sessions, 10 is comfortably more than enough.</p>
           </details>
           <details>
+            <summary>Can I use Clasp-it on multiple browsers or AI editors?</summary>
+            <p>Yes — one API key works everywhere. Copy your key from <strong>Settings → API Key</strong> in any Clasp-it install and paste it into your other browser's extension or your AI editor's MCP config. All your picks land in one place regardless of which browser captured them, so you can pick from your work laptop and edit from your home setup using the same session.</p>
+          </details>
+          <details>
             <summary>What MCP tools does Clasp-it provide?</summary>
             <p>Five: <code>get_element_context</code> (latest pick), <code>get_element_context_by_id</code> (specific pick), <code>list_recent_picks</code> (last N picks), <code>update_pick_status</code> (not_started / in_progress / completed), and <code>clear_context</code> (clear all picks).</p>
           </details>

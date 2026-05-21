@@ -132,15 +132,37 @@ continues from the original list.
   blocking them would drop legit events from any sender that
   doesn't include the header.
 
-- **#22 🟡 Compromised session can mint unlimited API keys**
-  `routes/auth.js:333` — `POST /auth/keys` requires only a session
-  token. No max-keys-per-user cap; no recent-auth check; minted keys
-  are durable forever. Session TTL is 7 days, so a leaked session
-  buys the attacker plenty of mint window.
-  Fix candidates: cap at 5 keys/user; require fresh magic-link before
-  mint; auto-expire keys.
-  **User-flow impact:** YES — would change minting behavior.
-  Status: pending user approval before I apply.
+- **~~#22 🟡 Compromised session can mint unlimited API keys~~** ✅ FIXED via "strict 1 key per user" — see below.
+  Approach chosen after user discussion: instead of capping keys per
+  user, enforce that there's only ever one. Multi-device users copy
+  the same key (Settings → API Key) into each install, which matches
+  the actual mental model — one email, one key, used everywhere.
+
+  Server changes (`routes/auth.js`): every key-mint path now does
+  `DELETE FROM api_keys WHERE user_id = $1` before INSERT.
+    - `/auth/verify/:token` (magic-link click — auto-mint)
+    - `/auth/poll/:deviceId` GET fallback path
+    - `/auth/poll` POST fallback path
+    - `/auth/keys` (session-authed mint)
+
+  Practical effects:
+    - Re-signup invalidates all prior keys for that user — every other
+      install (browser, editor) using the old key has to be re-pasted
+      with the new one. Acceptable trade-off; re-signup is rare.
+    - DB stops accumulating orphan rows from repeat magic-link clicks.
+    - A leaked key can be revoked by re-signing up. (No dedicated
+      "rotate key" endpoint yet — that's a future addition.)
+    - Compromised session can still mint a new key, but it's exactly
+      one key, and the legitimate user noticing → re-signing up
+      revokes the attacker's key in turn.
+
+  Extension UX support shipped alongside:
+    - Settings panel: full-width API key block with prominent "Copy"
+      button + microcopy explaining multi-device usage.
+    - Auth screen "Or paste existing key": new hint pointing to the
+      key location on the other install.
+    - FAQ: new entry "Can I use Clasp-it on multiple browsers or
+      editors?" → yes, copy the same key everywhere.
 
 - **#23 🟡 `/auth/signup` enables email-bombing a target inbox**
   `routes/auth.js:175`. Per-IP limit (10/h) doesn't stop a botnet

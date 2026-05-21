@@ -999,6 +999,25 @@ document.getElementById("settings-key-chip").addEventListener("click", () => {
   if (app.apiKey) navigator.clipboard.writeText(app.apiKey).catch(() => {});
 });
 
+document.getElementById("settings-key-copy")?.addEventListener("click", async () => {
+  if (!app.apiKey) return;
+  const btn = document.getElementById("settings-key-copy");
+  try {
+    await navigator.clipboard.writeText(app.apiKey);
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = "Copied!";
+      btn.classList.add("copied");
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.classList.remove("copied");
+      }, 1500);
+    }
+  } catch {
+    /* clipboard denied — silently no-op */
+  }
+});
+
 document.getElementById("settings-topup-btn")?.addEventListener("click", (e) => {
   e.preventDefault();
   startTopupCheckout();

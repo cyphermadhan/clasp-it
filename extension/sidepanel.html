@@ -567,6 +567,46 @@
     }
     .sp-key-chip:hover { color: var(--text-primary); }
 
+    /* Settings → API key (stacked layout) */
+    .sp-card-row-stack {
+      flex-direction: column; align-items: stretch; gap: 8px;
+    }
+    .sp-card-row-head {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .sp-key-chip-large {
+      font-family: var(--font-mono); font-size: 11px;
+      background: var(--bg-secondary); border-radius: var(--radius-xs);
+      padding: 8px 10px;
+      word-break: break-all;
+      color: var(--text-secondary);
+      border: 0.5px solid var(--border-faint);
+      cursor: pointer;
+      transition: border-color 0.1s, color 0.1s;
+      user-select: all;
+    }
+    .sp-key-chip-large:hover {
+      border-color: var(--border-medium);
+      color: var(--text-primary);
+    }
+    .sp-key-copy-btn {
+      background: var(--bg-primary); border: 0.5px solid var(--border-medium);
+      border-radius: var(--radius-md); padding: 4px 10px;
+      font-size: 11px; font-weight: 500; cursor: pointer; line-height: 1;
+      color: var(--text-secondary); font-family: inherit;
+      transition: background 0.1s, color 0.1s;
+    }
+    .sp-key-copy-btn:hover {
+      background: var(--bg-secondary); color: var(--text-primary);
+    }
+    .sp-key-copy-btn.copied {
+      background: var(--bg-success); color: var(--text-success);
+      border-color: transparent;
+    }
+    .sp-card-hint {
+      font-size: 11px; color: var(--text-tertiary); line-height: 1.45;
+    }
+
     .sp-link {
       font-size: 12px; color: var(--text-info); text-decoration: none; font-weight: 500;
       flex-shrink: 0;
@@ -753,6 +793,9 @@
   <div class="sp-field">
     <input type="text" id="sp-key-input" class="sp-input mono" placeholder="cit_…" autocomplete="off" spellcheck="false"/>
     <button id="sp-key-save-btn" class="sp-btn sp-btn-secondary" style="margin-top:6px">Save key</button>
+    <p style="font-size:11px;color:var(--text-tertiary);margin-top:8px;line-height:1.45">
+      Already using Clasp-it on another browser? Find your key there in Settings → API Key.
+    </p>
   </div>
 </div>
 
@@ -950,9 +993,13 @@
         <a id="settings-upgrade-link" href="#" target="_blank" class="sp-link" style="display:none">Upgrade →</a>
       </div>
     </div>
-    <div class="sp-card-row">
-      <span class="sp-card-label">API Key</span>
-      <span id="settings-key-chip" class="sp-key-chip" title="Click to copy">—</span>
+    <div class="sp-card-row sp-card-row-stack">
+      <div class="sp-card-row-head">
+        <span class="sp-card-label">API Key</span>
+        <button id="settings-key-copy" type="button" class="sp-key-copy-btn">Copy</button>
+      </div>
+      <div id="settings-key-chip" class="sp-key-chip-large" title="Click to copy">—</div>
+      <p class="sp-card-hint">Same key works in every browser and AI editor. To set it up on another browser, paste this into the extension's <em>"I have an API key"</em> screen.</p>
     </div>
   </div>
 

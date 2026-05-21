@@ -269,6 +269,11 @@ router.get('/verify/:token', verifyLimit, async (req, res) => {
     if (deviceId) {
       try {
         const { raw, hash, prefix } = generateApiKey();
+        // Strict 1-key-per-user: revoke any existing keys for this user
+        // before issuing the new one. Multi-device users copy the same key
+        // from Settings → API Key into each browser/editor; they don't
+        // accumulate distinct keys per install.
+        await pool.query('DELETE FROM api_keys WHERE user_id = $1', [userId]);
         await pool.query(
           `INSERT INTO api_keys (user_id, key_hash, key_prefix, label)
            VALUES ($1, $2, $3, $4)`,
@@ -352,6 +357,10 @@ router.post('/keys', sessionInfoLimit, requireSession, async (req, res) => {
   try {
     const { raw, hash, prefix } = generateApiKey();
 
+    // Strict 1-key-per-user. POSTing here is effectively a key rotation —
+    // old key gets invalidated. Mirrors verify/poll behavior so the DB
+    // can never accumulate more than one row per user.
+    await pool.query('DELETE FROM api_keys WHERE user_id = $1', [req.userId]);
     await pool.query(
       `INSERT INTO api_keys (user_id, key_hash, key_prefix, label)
        VALUES ($1, $2, $3, $4)`,
@@ -433,8 +442,11 @@ router.get('/poll/:deviceId', pollLimit, async (req, res) => {
           return res.json({ status: 'verified', apiKey: pending.apiKey, plan: pending.plan, email: pending.email });
         }
 
-        // No cached key found — create a new one (last resort, should be rare)
+        // No cached key found — create a new one (last resort, should be rare).
+        // Same strict-1-key invariant as /auth/verify: revoke any existing
+        // keys before minting.
         const { raw, hash, prefix } = generateApiKey();
+        await pool.query('DELETE FROM api_keys WHERE user_id = $1', [user_id]);
         await pool.query(
           `INSERT INTO api_keys (user_id, key_hash, key_prefix, label) VALUES ($1, $2, $3, $4)`,
           [user_id, hash, prefix, 'Extension'],
@@ -519,7 +531,9 @@ router.post('/poll', pollLimit, async (req, res) => {
         }
 
         // Cached key is gone too — issue a new one. Should be rare.
+        // Strict-1-key invariant: revoke any existing keys before minting.
         const { raw, hash, prefix } = generateApiKey();
+        await pool.query('DELETE FROM api_keys WHERE user_id = $1', [user_id]);
         await pool.query(
           `INSERT INTO api_keys (user_id, key_hash, key_prefix, label) VALUES ($1, $2, $3, $4)`,
           [user_id, hash, prefix, 'Extension'],
