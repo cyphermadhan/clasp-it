@@ -38,10 +38,6 @@ app.use((_req, res, next) => {
 });
 
 // Webhook route needs the raw body for HMAC signature verification.
-// Must be registered BEFORE express.json() so the route gets a Buffer, not a parsed object.
-app.use('/auth/webhook', express.raw({ type: 'application/json', limit: '1mb' }));
-
-// Webhook route needs the raw body for HMAC signature verification.
 // Must be registered BEFORE express.json() — once json() runs, raw bytes are gone.
 app.use('/auth/webhook', express.raw({ type: 'application/json', limit: '1mb' }));
 

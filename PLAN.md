@@ -437,9 +437,11 @@ claude mcp add --scope user --transport http clasp-it \
 
 ---
 
-## Next Up — Attachments, Edit Picks, Top-ups, Max Plan
+## Shipped — Attachments, Edit Picks, Top-ups, Max card
 
-Status: planned, not built. Phasing at the end of this section.
+Status: live in production as of May 2026. Spec preserved below for
+historical reference; behavior may have evolved — `git log` is
+authoritative.
 
 ### 1. Attachments (Pro-only)
 
@@ -586,6 +588,19 @@ Build top-down so each phase is testable end-to-end:
 7. **Doc cleanup** — finalise PLAN.md, strip stale lines from CLAUDE.md, update Plans table
 
 Phase 1 unblocks 2–4 in parallel; phase 5 needs 2 + 3 done; phase 6 + 7 can land any time after 1.
+
+### Post-spec additions (also shipped)
+
+- `DELETE /element-context/:id` to cancel a pick + R2 + counter cleanup
+- Counter decrements when the LAST attachment is removed from a pick
+  (mirrors the increment-on-FIRST-batch rule)
+- Drag-and-drop in both the floating dialog and the sidepanel edit
+  screen
+- Click-to-copy on the "fix all recent picks using clasp-it" tip card
+- Daily R2 sweeper (`server/lib/cleanup.js`) for orphaned attachments
+  older than `CLEANUP_OLDER_THAN_DAYS` (default 28). Catches picks
+  Claude never marked completed and picks that fell off the 24h
+  Redis ring buffer.
 
 ---
 
