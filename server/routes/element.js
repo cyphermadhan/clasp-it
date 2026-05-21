@@ -378,8 +378,19 @@ router.delete('/:id/attachments/:attachmentId', requireApiKey, async (req, res) 
       ]).catch((err) => console.warn('[attachments] DB delete failed:', err.message));
     }
 
-    await removeAttachmentFromPick(userId, pickId, attachmentId);
-    return res.json({ success: true });
+    const updated = await removeAttachmentFromPick(userId, pickId, attachmentId);
+
+    // If this was the last attachment on the pick, the pick no longer counts
+    // against the monthly quota — give the user back their counter slot.
+    // Mirrors the increment rule, which only fires on the FIRST batch upload.
+    const remaining = updated?.attachments?.length ?? 0;
+    let quota = null;
+    if (remaining === 0) {
+      await decrementAttachmentsUsed(userId);
+    }
+    quota = await getAttachmentQuota(userId, req.userPlan);
+
+    return res.json({ success: true, quota });
   } catch (err) {
     console.error('[attachments] DELETE error:', err);
     return res.status(500).json({ error: 'Internal server error' });

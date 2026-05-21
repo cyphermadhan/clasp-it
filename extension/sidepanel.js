@@ -1353,6 +1353,40 @@ document.getElementById("sp-edit-file-input")?.addEventListener("change", async 
   if (files.length) await addEditFiles(files);
 });
 
+// Drag-and-drop onto the edit screen — same UX as the floating dialog.
+(() => {
+  const screen = document.getElementById("screen-edit");
+  if (!screen) return;
+  let dragDepth = 0;
+
+  screen.addEventListener("dragenter", (e) => {
+    if (![...(e.dataTransfer?.types ?? [])].includes("Files")) return;
+    e.preventDefault();
+    dragDepth++;
+    screen.classList.add("dragging");
+  });
+
+  screen.addEventListener("dragover", (e) => {
+    if (![...(e.dataTransfer?.types ?? [])].includes("Files")) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+  });
+
+  screen.addEventListener("dragleave", () => {
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (dragDepth === 0) screen.classList.remove("dragging");
+  });
+
+  screen.addEventListener("drop", async (e) => {
+    if (![...(e.dataTransfer?.types ?? [])].includes("Files")) return;
+    e.preventDefault();
+    dragDepth = 0;
+    screen.classList.remove("dragging");
+    const files = [...(e.dataTransfer?.files ?? [])];
+    if (files.length) await addEditFiles(files);
+  });
+})();
+
 // ── MCP setup toggle ─────────────────────────────────────────────────────────
 
 document.getElementById("sp-mcp-toggle").addEventListener("click", () => {

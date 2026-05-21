@@ -479,6 +479,16 @@
     .sp-edit-attach-row {
       display: flex; align-items: center; gap: 8px; min-height: 28px;
     }
+
+    /* Drag-and-drop overlay on the edit screen */
+    #screen-edit.dragging {
+      outline: 2px dashed var(--text-info);
+      outline-offset: -8px;
+      background: var(--bg-secondary);
+    }
+    /* Disable pointer events on inner content while dragging so dragleave
+       fires reliably on the screen container, not on a child node. */
+    #screen-edit.dragging * { pointer-events: none; }
     .sp-btn-small {
       padding: 5px 10px; font-size: 12px; font-weight: 500;
       border-radius: var(--radius-md); width: auto;
