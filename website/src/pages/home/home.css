@@ -233,7 +233,7 @@ code {
 
 .pricing-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 12px;
   text-align: left;
 }
@@ -328,6 +328,25 @@ code {
 .plan-cta-free:hover { background: rgba(0,0,0,0.09); }
 .plan-cta-pro { background: var(--accent); color: #fff; }
 .plan-cta-pro:hover { background: var(--accent-dark); }
+
+.plan.max {
+  background: linear-gradient(135deg, rgba(115, 114, 108, 0.04) 0%, rgba(115, 114, 108, 0.01) 100%);
+  border-color: rgba(115, 114, 108, 0.25);
+}
+.plan.max .plan-name { color: var(--text-secondary); }
+
+.plan-badge.soon {
+  background: var(--text-secondary);
+  color: #fff;
+  letter-spacing: 0.4px;
+}
+
+.plan-cta-disabled {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-secondary);
+  cursor: default;
+  pointer-events: none;
+}
 
 .plan-divider { border: none; border-top: 1px solid var(--border); margin-bottom: 16px; }
 
@@ -429,6 +448,9 @@ footer a:hover { color: var(--text); }
 .demo-close:hover { background: rgba(0, 0, 0, 0.85); }
 
 /* ── Responsive ── */
+@media (max-width: 900px) {
+  .pricing-grid { grid-template-columns: 1fr 1fr; }
+}
 @media (max-width: 600px) {
   nav { padding: 16px 20px; }
   .hero { padding: 56px 20px 48px; }

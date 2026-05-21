@@ -54,6 +54,7 @@ export default function Upgrade() {
           <li>Console logs</li>
           <li>Network requests</li>
           <li>React props</li>
+          <li>30 picks with attachments / month (5&nbsp;MB each)</li>
         </ul>
         <input
           className="email-input"

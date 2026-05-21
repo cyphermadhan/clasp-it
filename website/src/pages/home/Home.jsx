@@ -206,6 +206,21 @@ export default function Home() {
               <li>Console logs</li>
               <li>Network requests</li>
               <li>React props</li>
+              <li>30 picks with attachments / month (5&nbsp;MB each)</li>
+            </ul>
+          </div>
+          <div className="plan max">
+            <div className="plan-badge soon">Coming soon</div>
+            <p className="plan-name">Max</p>
+            <p className="plan-price">$6.99 <span>/mo</span></p>
+            <p className="plan-desc">More attachments, larger files. Or $69/yr.</p>
+            <span className="plan-cta plan-cta-disabled" aria-disabled="true">Coming soon</span>
+            <hr className="plan-divider" />
+            <ul className="plan-features">
+              <li>Everything in Pro</li>
+              <li>100 picks with attachments / month</li>
+              <li>25&nbsp;MB max file size</li>
+              <li>Priority support</li>
             </ul>
           </div>
         </div>
