@@ -29,6 +29,12 @@ import {
 import { requireApiKey } from '../lib/auth.js';
 import { getSignedUrl, deleteObjects, r2Enabled } from '../lib/r2.js';
 import { pool } from '../lib/db.js';
+import { apiKeyLimiter } from '../lib/ratelimit.js';
+
+// MCP gets a generous bucket — Claude can chain many tool calls in a single
+// chat turn, and we want headroom before any throttling shows as a 429
+// confusing the user mid-conversation.
+const mcpLimit = apiKeyLimiter({ max: 1200, windowMs: 60_000 });
 
 // ─── Attachment enrichment ────────────────────────────────────────────────────
 // Replaces each attachment's r2Key with a 1-hour signed GET URL. Returns a
@@ -316,8 +322,8 @@ async function handleMcp(req, res) {
 }
 
 // StreamableHTTPServerTransport handles both GET (SSE listen) and POST (JSON-RPC)
-router.get('/', requireApiKey, handleMcp);
-router.post('/', requireApiKey, handleMcp);
+router.get('/', requireApiKey, mcpLimit, handleMcp);
+router.post('/', requireApiKey, mcpLimit, handleMcp);
 
 // Optional: handle DELETE for explicit session termination (stateless — nothing to do)
 router.delete('/', (_req, res) => {

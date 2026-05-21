@@ -27,6 +27,11 @@ import {
 import { requireApiKey, gatePayload, PLANS, getAttachmentQuota } from '../lib/auth.js';
 import { pool } from '../lib/db.js';
 import { r2Enabled, putObject, deleteObject, deleteObjects, buildAttachmentKey } from '../lib/r2.js';
+import { apiKeyLimiter } from '../lib/ratelimit.js';
+
+// 10 req/sec/key — generous, accommodates the extension's 5-second poll
+// across 20+ open picks plus normal usage. Real abuse hits this fast.
+const apiLimit = apiKeyLimiter({ max: 600, windowMs: 60_000 });
 
 const router = Router();
 
@@ -53,7 +58,7 @@ const MIME_TO_EXT = {
   'application/json': 'json',
 };
 
-router.post('/', requireApiKey, async (req, res) => {
+router.post('/', requireApiKey, apiLimit, async (req, res) => {
   try {
     const { userId, userPlan } = req;
     const planDef = PLANS[userPlan] ?? PLANS.free;
@@ -134,7 +139,7 @@ router.post('/', requireApiKey, async (req, res) => {
 // Returns { pickId: status } for a list of IDs. Used by the extension sidebar
 // to poll status for history items.
 
-router.get('/statuses', requireApiKey, async (req, res) => {
+router.get('/statuses', requireApiKey, apiLimit, async (req, res) => {
   const raw = req.query.ids ?? '';
   const ids = raw.split(',').map((s) => s.trim()).filter(Boolean);
   if (ids.length === 0) return res.json({});
@@ -152,7 +157,7 @@ router.get('/statuses', requireApiKey, async (req, res) => {
 // Returns the caller's monthly attachment quota for the current month.
 // Static path — declared before any /:id routes so Express matches it first.
 
-router.get('/quota', requireApiKey, async (req, res) => {
+router.get('/quota', requireApiKey, apiLimit, async (req, res) => {
   try {
     const quota = await getAttachmentQuota(req.userId, req.userPlan);
     return res.json(quota);
@@ -166,7 +171,7 @@ router.get('/quota', requireApiKey, async (req, res) => {
 // Edit a pick's prompt while it's still not_started. Returns 409 once Claude
 // has pulled it (status flipped to in_progress or completed).
 
-router.patch('/:id', requireApiKey, async (req, res) => {
+router.patch('/:id', requireApiKey, apiLimit, async (req, res) => {
   const { id } = req.params;
   const { prompt } = req.body ?? {};
 
@@ -198,7 +203,7 @@ router.patch('/:id', requireApiKey, async (req, res) => {
 // list, deletes any R2 attachments + DB rows, and decrements the monthly
 // counter so the user isn't charged for a pick they cancelled.
 
-router.delete('/:id', requireApiKey, async (req, res) => {
+router.delete('/:id', requireApiKey, apiLimit, async (req, res) => {
   const { id: pickId } = req.params;
   const { userId } = req;
 
@@ -240,7 +245,7 @@ router.delete('/:id', requireApiKey, async (req, res) => {
 // plan, uploads each file to R2, persists metadata, and updates the pick's
 // in-Redis attachments list. Increments the monthly counter once per pick.
 
-router.post('/:id/attachments', requireApiKey, upload.array('files', HARD_FILE_COUNT), async (req, res) => {
+router.post('/:id/attachments', requireApiKey, apiLimit, upload.array('files', HARD_FILE_COUNT), async (req, res) => {
   const { id: pickId } = req.params;
   const { userId, userPlan } = req;
   const planDef = PLANS[userPlan] ?? PLANS.free;
@@ -351,7 +356,7 @@ router.post('/:id/attachments', requireApiKey, upload.array('files', HARD_FILE_C
 
 // ─── DELETE /element-context/:id/attachments/:attachmentId ────────────────────
 
-router.delete('/:id/attachments/:attachmentId', requireApiKey, async (req, res) => {
+router.delete('/:id/attachments/:attachmentId', requireApiKey, apiLimit, async (req, res) => {
   const { id: pickId, attachmentId } = req.params;
   const { userId } = req;
 

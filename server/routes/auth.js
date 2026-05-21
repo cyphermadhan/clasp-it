@@ -23,6 +23,16 @@ import {
   getPendingApiKey,
   incrementAttachmentBonus,
 } from '../lib/storage.js';
+import { apiKeyLimiter, ipLimiter } from '../lib/ratelimit.js';
+
+// Per-IP limiter for unauthenticated probes (poll, verify) and checkout.
+// Tight enough that brute-forcing deviceIds or hammering checkout creation
+// hits the wall fast; loose enough that a normal user isn't affected.
+const pollLimit = ipLimiter({ max: 60, windowMs: 60_000 });           // 1/sec/IP
+const verifyLimit = ipLimiter({ max: 30, windowMs: 60_000 });         // verify clicks
+const checkoutLimit = ipLimiter({ max: 20, windowMs: 60_000 });       // creating checkout sessions
+const sessionInfoLimit = ipLimiter({ max: 60, windowMs: 60_000 });    // /me, /keys (session-keyed but limiter runs pre-auth)
+const apiInfoLimit = apiKeyLimiter({ max: 60, windowMs: 60_000 });    // /auth/info per API key
 
 const router = Router();
 
@@ -216,7 +226,7 @@ router.post('/signup', async (req, res) => {
 
 // ─── GET /auth/verify/:token ──────────────────────────────────────────────────
 
-router.get('/verify/:token', async (req, res) => {
+router.get('/verify/:token', verifyLimit, async (req, res) => {
   const { token } = req.params;
 
   if (!pool) {
@@ -290,7 +300,7 @@ router.get('/verify/:token', async (req, res) => {
 
 // ─── GET /auth/me ─────────────────────────────────────────────────────────────
 
-router.get('/me', requireSession, async (req, res) => {
+router.get('/me', sessionInfoLimit, requireSession, async (req, res) => {
   if (!pool) {
     return res.json({ id: req.userId, plan: req.userPlan, email: 'dev@local' });
   }
@@ -330,7 +340,7 @@ router.get('/me', requireSession, async (req, res) => {
 
 // ─── POST /auth/keys ─────────────────────────────────────────────────────────
 
-router.post('/keys', requireSession, async (req, res) => {
+router.post('/keys', sessionInfoLimit, requireSession, async (req, res) => {
   const { label } = req.body ?? {};
 
   if (!pool) {
@@ -356,7 +366,7 @@ router.post('/keys', requireSession, async (req, res) => {
 
 // ─── DELETE /auth/keys/:id ────────────────────────────────────────────────────
 
-router.delete('/keys/:id', requireSession, async (req, res) => {
+router.delete('/keys/:id', sessionInfoLimit, requireSession, async (req, res) => {
   if (!pool) {
     return res.status(503).json({ error: 'Database not available in dev mode' });
   }
@@ -382,7 +392,7 @@ router.delete('/keys/:id', requireSession, async (req, res) => {
 // Extension polls this after sending a magic link. Returns the API key once
 // the user clicks the email link. The key is consumed on first successful poll.
 
-router.get('/poll/:deviceId', async (req, res) => {
+router.get('/poll/:deviceId', pollLimit, async (req, res) => {
   const { deviceId } = req.params;
   if (!deviceId) return res.status(400).json({ error: 'deviceId required' });
 
@@ -450,7 +460,7 @@ router.get('/poll/:deviceId', async (req, res) => {
 // ─── GET /auth/info ───────────────────────────────────────────────────────────
 // Returns email + plan for a valid API key. Used by the extension sidebar.
 
-router.get('/info', requireApiKey, async (req, res) => {
+router.get('/info', requireApiKey, apiInfoLimit, async (req, res) => {
   if (!pool) {
     return res.json({ email: null, plan: 'pro' });
   }
@@ -653,7 +663,7 @@ function buildDodoCustomer({ email, dodoCustomerId }) {
 
 // ─── POST /billing/checkout ───────────────────────────────────────────────────
 
-router.post('/checkout', async (req, res) => {
+router.post('/checkout', checkoutLimit, async (req, res) => {
   const collectionId = process.env.DODO_COLLECTION_PRO;
   if (!collectionId) {
     return res.status(503).json({ error: 'Pro product not configured' });
@@ -693,7 +703,7 @@ router.post('/checkout', async (req, res) => {
 // One-time top-up that grants +25 picks-with-attachments for the current month.
 // On payment success, the webhook below increments the user's bonus counter.
 
-router.post('/checkout/topup', async (req, res) => {
+router.post('/checkout/topup', checkoutLimit, async (req, res) => {
   const productId = process.env.DODO_PRODUCT_TOPUP_25;
   if (!productId) {
     return res.status(503).json({ error: 'Top-up product not configured' });

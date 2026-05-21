@@ -22,6 +22,12 @@ import { cleanupOldAttachments } from './lib/cleanup.js';
 
 const app = express();
 
+// Railway / Cloudflare put us behind one reverse-proxy hop. Trusting that
+// hop lets req.ip (and downstream rate limiters) see the real client IP
+// from X-Forwarded-For. `1` (not `true`) avoids over-trusting arbitrary
+// upstream hops — see https://expressjs.com/en/guide/behind-proxies.html
+app.set('trust proxy', 1);
+
 // Allow all origins for now — tighten in production via CORS_ORIGIN env var.
 app.use(
   cors({
