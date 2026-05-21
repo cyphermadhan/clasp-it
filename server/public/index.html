@@ -108,6 +108,14 @@
               "@type": "Answer",
               "text": "Browser DevTools requires you to manually copy-paste HTML, CSS, and context into your AI chat. Clasp-it captures all of it in one click — HTML, computed CSS, React props, console logs, network requests, and a screenshot — and delivers it directly to your AI editor's context window via MCP, so your AI can edit your actual code files."
             }
+          },
+          {
+            "@type": "Question",
+            "name": "How many picks can I send to my AI editor in one go?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Up to 10 picks at a time. This is an intentional limit — it keeps your AI editor (Claude, Cursor, Windsurf, or any MCP client) focused on a tight batch it can reason about end-to-end, and avoids burning a large chunk of your AI tokens on a single mega-prompt. Once earlier picks are marked completed, they roll off and you can queue up the next 10. For most fix-everything sessions, 10 is comfortably more than enough."
+            }
           }
         ]
       }
