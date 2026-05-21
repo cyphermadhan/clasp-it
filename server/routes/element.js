@@ -21,10 +21,12 @@ import {
   addAttachmentToPick,
   removeAttachmentFromPick,
   incrementAttachmentsUsed,
+  decrementAttachmentsUsed,
+  removePickFromList,
 } from '../lib/storage.js';
 import { requireApiKey, gatePayload, PLANS, getAttachmentQuota } from '../lib/auth.js';
 import { pool } from '../lib/db.js';
-import { r2Enabled, putObject, deleteObject, buildAttachmentKey } from '../lib/r2.js';
+import { r2Enabled, putObject, deleteObject, deleteObjects, buildAttachmentKey } from '../lib/r2.js';
 
 const router = Router();
 
@@ -187,6 +189,48 @@ router.patch('/:id', requireApiKey, async (req, res) => {
     return res.json({ success: true, pick: updated });
   } catch (err) {
     console.error('[element-context] PATCH error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── DELETE /element-context/:id ──────────────────────────────────────────────
+// Cancel a pick before Claude has pulled it. Removes the pick from the user's
+// list, deletes any R2 attachments + DB rows, and decrements the monthly
+// counter so the user isn't charged for a pick they cancelled.
+
+router.delete('/:id', requireApiKey, async (req, res) => {
+  const { id: pickId } = req.params;
+  const { userId } = req;
+
+  try {
+    const pick = await getPickById(userId, pickId);
+    if (!pick) return res.status(404).json({ error: 'Pick not found' });
+
+    if (pick.status && pick.status !== 'not_started') {
+      return res.status(409).json({
+        error: 'Pick already pulled — cannot delete',
+        status: pick.status,
+      });
+    }
+
+    const attachments = pick.attachments ?? [];
+    if (attachments.length > 0) {
+      const keys = attachments.map((a) => a.r2Key).filter(Boolean);
+      await deleteObjects(keys);
+      if (pool) {
+        await pool
+          .query('DELETE FROM attachments WHERE pick_id = $1 AND user_id = $2', [pickId, userId])
+          .catch((err) => console.warn('[element-context] DELETE attachments cleanup failed:', err.message));
+      }
+      // Counter only ever increments once per pick (on first batch upload),
+      // so decrement once on delete.
+      await decrementAttachmentsUsed(userId);
+    }
+
+    await removePickFromList(userId, pickId);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[element-context] DELETE error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

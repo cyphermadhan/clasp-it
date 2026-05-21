@@ -64,6 +64,21 @@ function showScreen(name) {
 // ── Edit pick state ──────────────────────────────────────────────────────────
 
 let editingItem = null; // history item being edited (snapshot)
+let editingExisting = []; // [{id, filename, mimeType, sizeBytes}] — copy from history item
+let editingRemovals = new Set(); // existing attachment IDs flagged for removal
+let editingNewFiles = []; // [{id, file, dataUrl, isImage}] — new staged files
+
+const EDIT_MAX_COUNT = 3;
+const EDIT_MAX_BYTES = 5 * 1024 * 1024;
+const EDIT_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "text/markdown",
+  "text/plain",
+  "application/json",
+];
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 
@@ -444,6 +459,18 @@ async function handleQuickSend(elementData, prompt = "", attachments = []) {
         await storageSet({ clasp_history: app.history });
         if (app.screen === "main") renderHistory();
         if (upload.status === 429) app.attachmentQuotaHit = true;
+      } else if (upload.attachments?.length) {
+        // Store metadata so the edit modal can list them.
+        const stored = upload.attachments.map(a => ({
+          id: a.id,
+          filename: a.filename,
+          mimeType: a.mimeType,
+          sizeBytes: a.sizeBytes,
+        }));
+        app.history = app.history.map(h =>
+          h.id === item.id ? { ...h, attachments: stored, attachmentCount: stored.length } : h,
+        );
+        await storageSet({ clasp_history: app.history });
       }
     }
   } else {
@@ -771,29 +798,22 @@ function renderHistory() {
     row.appendChild(body);
 
     if (canDelete) {
-      // Edit (pencil) — only available while pick can still be edited (i.e. not pulled)
-      if (item.pickId) {
-        const editBtn = document.createElement("button");
-        editBtn.className = "sp-history-edit-btn";
-        editBtn.title = "Edit prompt";
-        editBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>`;
-        editBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          startEdit(item);
-        });
-        row.appendChild(editBtn);
-      }
       const btn = document.createElement("button");
       btn.className = "sp-delete-btn";
       btn.title = "Delete";
       btn.textContent = "✕";
-      btn.addEventListener("click", async (e) => {
+      btn.addEventListener("click", (e) => {
         e.stopPropagation();
-        app.history = app.history.filter(h => h.id !== item.id);
-        await storageSet({ clasp_history: app.history });
-        renderHistory();
+        deleteHistoryItem(item);
       });
       row.appendChild(btn);
+
+      // Whole row clickable when the pick is still editable. ✕ stops
+      // propagation, so deleting from the row doesn't also open the editor.
+      if (item.pickId) {
+        row.style.cursor = "pointer";
+        row.addEventListener("click", () => startEdit(item));
+      }
     } else {
       const badge = document.createElement("span");
       badge.className = `sp-status-badge ${statusClass}`;
@@ -803,6 +823,27 @@ function renderHistory() {
 
     list.appendChild(row);
   }
+}
+
+/**
+ * Delete a pick from history. If the pick was confirmed server-side and
+ * hasn't been pulled by Claude, also delete it on the server so the
+ * monthly attachment counter is decremented and R2 objects are cleaned up.
+ */
+async function deleteHistoryItem(item) {
+  if (item.pickId && (!item.status || item.status === "not_started") && app.apiKey) {
+    try {
+      await fetch(`${SERVER_URL}/element-context/${item.pickId}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${app.apiKey}` },
+      });
+    } catch {
+      // best-effort — local removal proceeds either way
+    }
+  }
+  app.history = app.history.filter(h => h.id !== item.id);
+  await storageSet({ clasp_history: app.history });
+  renderHistory();
 }
 
 function shortUrl(url) {
@@ -1017,11 +1058,15 @@ async function renderSettings() {
 function startEdit(item) {
   if (!item || item.status !== "not_started" || !item.pickId) return;
   editingItem = item;
+  editingExisting = Array.isArray(item.attachments) ? [...item.attachments] : [];
+  editingRemovals = new Set();
+  editingNewFiles = [];
+
   document.getElementById("sp-edit-element-label").textContent = item.elementLabel || "element";
   document.getElementById("sp-edit-prompt").value = item.prompt || "";
   setEditError("");
+  renderEditAttachments();
   showScreen("edit");
-  // Focus + place cursor at the end of any existing prompt
   const ta = document.getElementById("sp-edit-prompt");
   ta.focus();
   ta.selectionStart = ta.selectionEnd = ta.value.length;
@@ -1032,49 +1077,221 @@ function setEditError(msg) {
   if (el) el.textContent = msg || "";
 }
 
+function editLiveCount() {
+  const remaining = editingExisting.filter(a => !editingRemovals.has(a.id)).length;
+  return remaining + editingNewFiles.length;
+}
+
+function renderEditAttachments() {
+  const wrap = document.getElementById("sp-edit-thumbs");
+  const counter = document.getElementById("sp-edit-attach-count");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+
+  const tiles = [];
+
+  // Existing attachments (filename chips — we don't have their image data
+  // client-side, fetching signed URLs per tile would be one extra request
+  // per attachment per render).
+  for (const att of editingExisting) {
+    if (editingRemovals.has(att.id)) continue;
+    const tile = document.createElement("div");
+    tile.className = "sp-edit-thumb";
+    const text = document.createElement("div");
+    text.className = "sp-edit-thumb-text";
+    text.textContent = att.filename || "file";
+    tile.appendChild(text);
+    const remove = document.createElement("button");
+    remove.className = "sp-edit-thumb-remove";
+    remove.title = "Remove";
+    remove.textContent = "✕";
+    remove.addEventListener("click", () => {
+      editingRemovals.add(att.id);
+      renderEditAttachments();
+    });
+    tile.appendChild(remove);
+    tiles.push(tile);
+  }
+
+  // Newly-staged files — show image preview when possible.
+  for (const file of editingNewFiles) {
+    const tile = document.createElement("div");
+    tile.className = "sp-edit-thumb";
+    if (file.isImage) {
+      const img = document.createElement("img");
+      img.src = file.dataUrl;
+      img.alt = file.file.name;
+      tile.appendChild(img);
+    } else {
+      const text = document.createElement("div");
+      text.className = "sp-edit-thumb-text";
+      text.textContent = file.file.name;
+      tile.appendChild(text);
+    }
+    const remove = document.createElement("button");
+    remove.className = "sp-edit-thumb-remove";
+    remove.title = "Remove";
+    remove.textContent = "✕";
+    remove.addEventListener("click", () => {
+      editingNewFiles = editingNewFiles.filter(f => f.id !== file.id);
+      renderEditAttachments();
+    });
+    tile.appendChild(remove);
+    tiles.push(tile);
+  }
+
+  if (tiles.length) {
+    wrap.classList.add("has-items");
+    tiles.forEach(t => wrap.appendChild(t));
+  } else {
+    wrap.classList.remove("has-items");
+  }
+
+  if (counter) {
+    const live = editLiveCount();
+    counter.textContent = live > 0 ? `${live} / ${EDIT_MAX_COUNT}` : "";
+  }
+}
+
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error("read failed"));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function addEditFiles(rawFiles) {
+  setEditError("");
+  const reasons = [];
+  const live = editLiveCount();
+  const remaining = EDIT_MAX_COUNT - live;
+  if (remaining <= 0) {
+    setEditError(`Max ${EDIT_MAX_COUNT} attachments per pick`);
+    return;
+  }
+  if (rawFiles.length > remaining) {
+    reasons.push(`${rawFiles.length - remaining} extra file(s) skipped`);
+  }
+  for (const file of [...rawFiles].slice(0, remaining)) {
+    if (!EDIT_TYPES.includes(file.type)) {
+      reasons.push(`${file.name}: unsupported type`);
+      continue;
+    }
+    if (file.size > EDIT_MAX_BYTES) {
+      reasons.push(`${file.name}: too large (max 5 MB)`);
+      continue;
+    }
+    try {
+      const dataUrl = await readFileAsDataURL(file);
+      editingNewFiles.push({
+        id: crypto.randomUUID(),
+        file,
+        dataUrl,
+        isImage: file.type.startsWith("image/"),
+      });
+    } catch {
+      reasons.push(`${file.name}: read failed`);
+    }
+  }
+  renderEditAttachments();
+  if (reasons.length) setEditError(reasons.join(" · "));
+}
+
 async function saveEdit() {
   if (!editingItem) return;
+  const pickId = editingItem.pickId;
   const newPrompt = document.getElementById("sp-edit-prompt").value;
   const saveBtn = document.getElementById("sp-edit-save-btn");
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Saving…"; }
   setEditError("");
 
+  const promptChanged = newPrompt !== (editingItem.prompt || "");
+  const removals = [...editingRemovals];
+  const additions = [...editingNewFiles];
+
   try {
-    const res = await fetch(`${SERVER_URL}/element-context/${editingItem.pickId}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...(app.apiKey ? { "Authorization": `Bearer ${app.apiKey}` } : {}),
-      },
-      body: JSON.stringify({ prompt: newPrompt }),
-    });
-
-    if (res.status === 409) {
-      const data = await res.json().catch(() => ({}));
-      // Pick was pulled by Claude between the time the user opened the modal
-      // and clicked save. Update our local status, then bounce back to main.
-      const newStatus = data.status || "in_progress";
-      app.history = app.history.map(h =>
-        h.id === editingItem.id ? { ...h, status: newStatus } : h,
-      );
-      await storageSet({ clasp_history: app.history });
-      setEditError("Already pulled by Claude — closing.");
-      setTimeout(() => {
-        editingItem = null;
-        showScreen("main");
-      }, 900);
-      return;
+    // 1. PATCH prompt if changed
+    if (promptChanged) {
+      const res = await fetch(`${SERVER_URL}/element-context/${pickId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(app.apiKey ? { "Authorization": `Bearer ${app.apiKey}` } : {}),
+        },
+        body: JSON.stringify({ prompt: newPrompt }),
+      });
+      if (res.status === 409) return handleEditConflict(res);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setEditError(data.error || `Save failed (${res.status})`);
+        return;
+      }
     }
 
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setEditError(data.error || `Save failed (${res.status})`);
-      return;
+    // 2. DELETE flagged attachments (sequentially — usually 1-3 calls)
+    for (const attachmentId of removals) {
+      const res = await fetch(`${SERVER_URL}/element-context/${pickId}/attachments/${attachmentId}`, {
+        method: "DELETE",
+        headers: app.apiKey ? { "Authorization": `Bearer ${app.apiKey}` } : {},
+      });
+      if (res.status === 409) return handleEditConflict(res);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setEditError(data.error || `Couldn't remove attachment`);
+        return;
+      }
     }
 
-    // Success — patch local history with new prompt
+    // 3. POST new files in one multipart request
+    let uploadedAttachments = [];
+    if (additions.length > 0) {
+      const form = new FormData();
+      for (const f of additions) {
+        try {
+          const blob = dataURLToBlob(f.dataUrl);
+          form.append("files", blob, f.file.name);
+        } catch {
+          // skip unreadable
+        }
+      }
+      const res = await fetch(`${SERVER_URL}/element-context/${pickId}/attachments`, {
+        method: "POST",
+        headers: app.apiKey ? { "Authorization": `Bearer ${app.apiKey}` } : {},
+        body: form,
+      });
+      if (res.status === 409) return handleEditConflict(res);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setEditError(data.error || `Upload failed (${res.status})`);
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      uploadedAttachments = (data.attachments || []).map(a => ({
+        id: a.id,
+        filename: a.filename,
+        mimeType: a.mimeType,
+        sizeBytes: a.sizeBytes,
+      }));
+    }
+
+    // 4. Build the new attachment list from local state + server response
+    const finalAttachments = [
+      ...editingExisting.filter(a => !editingRemovals.has(a.id)),
+      ...uploadedAttachments,
+    ];
+
     app.history = app.history.map(h =>
-      h.id === editingItem.id ? { ...h, prompt: newPrompt } : h,
+      h.id === editingItem.id
+        ? {
+            ...h,
+            prompt: newPrompt,
+            attachments: finalAttachments,
+            attachmentCount: finalAttachments.length,
+            attachmentError: null,
+          }
+        : h,
     );
     await storageSet({ clasp_history: app.history });
     editingItem = null;
@@ -1084,6 +1301,22 @@ async function saveEdit() {
   } finally {
     if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "Save"; }
   }
+}
+
+async function handleEditConflict(res) {
+  const data = await res.json().catch(() => ({}));
+  const newStatus = data.status || "in_progress";
+  app.history = app.history.map(h =>
+    h.id === editingItem?.id ? { ...h, status: newStatus } : h,
+  );
+  await storageSet({ clasp_history: app.history });
+  setEditError("Already pulled by Claude — closing.");
+  setTimeout(() => {
+    editingItem = null;
+    showScreen("main");
+  }, 900);
+  const saveBtn = document.getElementById("sp-edit-save-btn");
+  if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "Save"; }
 }
 
 document.getElementById("sp-edit-back-btn")?.addEventListener("click", () => {
@@ -1104,6 +1337,20 @@ document.getElementById("sp-edit-prompt")?.addEventListener("keydown", (e) => {
     editingItem = null;
     showScreen("main");
   }
+});
+
+document.getElementById("sp-edit-attach-btn")?.addEventListener("click", () => {
+  const input = document.getElementById("sp-edit-file-input");
+  if (input) {
+    input.accept = EDIT_TYPES.join(",");
+    input.click();
+  }
+});
+
+document.getElementById("sp-edit-file-input")?.addEventListener("change", async (e) => {
+  const files = [...(e.target.files ?? [])];
+  e.target.value = ""; // allow re-selecting the same file
+  if (files.length) await addEditFiles(files);
 });
 
 // ── MCP setup toggle ─────────────────────────────────────────────────────────

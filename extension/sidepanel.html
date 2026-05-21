@@ -446,6 +446,60 @@
     }
     .sp-edit-actions .sp-btn { flex: 1; }
 
+    .sp-edit-thumbs {
+      display: none; flex-direction: row; flex-wrap: wrap; gap: 6px;
+    }
+    .sp-edit-thumbs.has-items { display: flex; }
+
+    .sp-edit-thumb {
+      position: relative; width: 56px; height: 56px;
+      border-radius: var(--radius-md); border: 0.5px solid var(--border-medium);
+      background: var(--bg-secondary); overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .sp-edit-thumb img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    .sp-edit-thumb-text {
+      font-size: 9px; line-height: 1.2; color: var(--text-secondary);
+      text-align: center; padding: 4px; word-break: break-all;
+      overflow: hidden; max-width: 100%;
+    }
+    .sp-edit-thumb-remove {
+      position: absolute; top: 2px; right: 2px;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: rgba(0,0,0,0.6); color: white;
+      font-size: 10px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; border: none; padding: 0; line-height: 1;
+    }
+    .sp-edit-thumb-remove:hover { background: rgba(0,0,0,0.85); }
+
+    .sp-edit-attach-row {
+      display: flex; align-items: center; gap: 8px; min-height: 28px;
+    }
+    .sp-btn-small {
+      padding: 5px 10px; font-size: 12px; font-weight: 500;
+      border-radius: var(--radius-md); width: auto;
+    }
+    .sp-edit-attach-count {
+      font-size: 11px; color: var(--text-tertiary);
+    }
+
+    /* ── Settings: top-up button ── */
+    .sp-topup-btn {
+      width: 100%; padding: 8px 12px;
+      background: var(--bg-secondary); color: var(--text-primary);
+      border: 0.5px solid var(--border-medium);
+      border-radius: var(--radius-md);
+      font: inherit; font-size: 12px; font-weight: 500;
+      cursor: pointer; text-align: center;
+      transition: background 0.1s;
+    }
+    .sp-topup-btn:hover:not(:disabled) { background: var(--border-faint); }
+    .sp-topup-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
     .sp-history-edit-btn {
       flex-shrink: 0; background: none; border: none; cursor: pointer;
       color: var(--text-ghost); padding: 2px 5px;
@@ -881,9 +935,11 @@
       <span class="sp-card-label">Bonus (top-ups)</span>
       <span id="settings-quota-bonus" class="sp-card-value">+0</span>
     </div>
-    <button id="settings-topup-btn" class="sp-link" style="background:none;border:none;cursor:pointer;text-align:left;padding:0;font:inherit">
-      Buy +25 picks ($5) →
-    </button>
+    <div style="padding: 12px 14px 14px">
+      <button id="settings-topup-btn" type="button" class="sp-topup-btn">
+        Buy +25 picks · $5
+      </button>
+    </div>
   </div>
 
   <!-- MCP setup — collapsible -->
@@ -972,6 +1028,17 @@
   <div id="sp-edit-element-label" class="sp-edit-element">—</div>
 
   <textarea id="sp-edit-prompt" class="sp-edit-textarea" placeholder="What to change?"></textarea>
+
+  <div id="sp-edit-thumbs" class="sp-edit-thumbs"></div>
+
+  <div class="sp-edit-attach-row">
+    <button id="sp-edit-attach-btn" type="button" class="sp-btn sp-btn-ghost sp-btn-small">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:middle"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+      Add attachment
+    </button>
+    <input type="file" id="sp-edit-file-input" multiple style="display:none">
+    <span id="sp-edit-attach-count" class="sp-edit-attach-count"></span>
+  </div>
 
   <div id="sp-edit-error" class="sp-edit-error"></div>
 

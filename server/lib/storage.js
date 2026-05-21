@@ -144,6 +144,40 @@ export async function clearPicks(userId) {
   }
 }
 
+/**
+ * Remove a single pick from the user's list (by pickId).
+ * Returns the removed pick (so callers can purge its attachments) or null.
+ * @param {string} userId
+ * @param {string} pickId
+ * @returns {Promise<object|null>}
+ */
+export async function removePickFromList(userId, pickId) {
+  const key = memKey(userId);
+
+  if (redis) {
+    const raws = await redis.lrange(key, 0, -1);
+    for (const raw of raws) {
+      const pick = deserialize(raw);
+      if (pick?.id === pickId) {
+        await redis.lrem(key, 1, raw);
+        return pick;
+      }
+    }
+    return null;
+  }
+
+  const list = memStore.get(key) ?? [];
+  for (let i = 0; i < list.length; i++) {
+    const pick = deserialize(list[i]);
+    if (pick?.id === pickId) {
+      list.splice(i, 1);
+      memStore.set(key, list);
+      return pick;
+    }
+  }
+  return null;
+}
+
 // ─── Pick status ──────────────────────────────────────────────────────────────
 
 /**
@@ -489,6 +523,27 @@ export async function incrementAttachmentsUsed(userId) {
     return count;
   }
   return memCounterIncr(key, 1);
+}
+
+/**
+ * Decrement the picks-with-attachments counter, clamped to >= 0.
+ * Called when a pick that had attachments is deleted before being pulled.
+ * @param {string} userId
+ * @returns {Promise<number>} new count (>= 0)
+ */
+export async function decrementAttachmentsUsed(userId) {
+  const key = attachmentsUsedKey(userId);
+  if (redis) {
+    const count = await redis.decr(key);
+    if (count < 0) {
+      await redis.set(key, "0", "EX", MONTH_TTL_SECONDS);
+      return 0;
+    }
+    return count;
+  }
+  const next = Math.max(0, memCounterGet(key) - 1);
+  monthlyCounterStore.set(key, next);
+  return next;
 }
 
 /**
