@@ -118,6 +118,59 @@ In one commit:
   return 200; the 601st returns 429. 60 calls to `/auth/poll/<random>`
   from one IP all 200; the 61st returns 429.
 
+### Round 2D — second-pass security review (in progress)
+
+A deeper look at attack surfaces beyond the original audit. Numbering
+continues from the original list.
+
+- **~~#21 🔴 Webhook is not idempotent — top-up can be double-credited~~** ✅ FIXED in `routes/auth.js` + `lib/storage.js#markWebhookSeen`.
+  Atomic SETNX-style claim on `webhook:seen:<webhook-id>` with 24h TTL.
+  Duplicate deliveries ack 200 with `{deduped: true}` and skip the
+  handler. Falls back to bounded in-memory map when Redis is missing.
+  Verified locally: replay of the same id returns false; fresh ids
+  return true; null/empty IDs fail open (allow processing) since
+  blocking them would drop legit events from any sender that
+  doesn't include the header.
+
+- **#22 🟡 Compromised session can mint unlimited API keys**
+  `routes/auth.js:333` — `POST /auth/keys` requires only a session
+  token. No max-keys-per-user cap; no recent-auth check; minted keys
+  are durable forever. Session TTL is 7 days, so a leaked session
+  buys the attacker plenty of mint window.
+  Fix candidates: cap at 5 keys/user; require fresh magic-link before
+  mint; auto-expire keys.
+  **User-flow impact:** YES — would change minting behavior.
+  Status: pending user approval before I apply.
+
+- **#23 🟡 `/auth/signup` enables email-bombing a target inbox**
+  `routes/auth.js:175`. Per-IP limit (10/h) doesn't stop a botnet
+  hitting different IPs. No per-target-email limit. Cost angle: ~$1
+  per 10K emails on Resend. Reputational angle: someone weaponises
+  the form to spam a third party with "Sign in to Clasp It" emails.
+  Fix: per-target-email rate limit, 5/h via Redis.
+  **User-flow impact:** rare edge case for legitimate users — typing
+  email wrong 5 times in an hour and getting blocked. Acceptable
+  trade-off but worth noting.
+  Status: pending user approval before I apply.
+
+- **#24 🟢 Session tokens stored as plaintext in Redis**
+  `lib/auth.js:69`. Threat model is "Redis read access compromised",
+  which already implies broader breach. Defense-in-depth: hash tokens
+  on write, compare hash on read. Currently no client surface uses
+  sessions actively (extension uses API keys; no dashboard exists)
+  so even invalidating existing sessions would be invisible.
+  Fix: ~5 lines, transparent.
+  Status: deferred — no clients to break, but also no clients to
+  protect. Revisit when a dashboard is built.
+
+- **#25 🟢 R2 signed-URL TTL of 1 hour is generous**
+  `routes/mcp.js:35`. If a Claude transcript leaks the URL, anyone
+  with the URL can fetch the attachment for the next hour. The
+  attachment is the user's own upload, so the only person hurt is
+  the user themselves.
+  Status: leave at 1h. Could lower to 5min if AI fetch latency
+  permits, but 1h is the safer default for AI usability.
+
 ### Items deferred / still open
 
 - **#1 `/auth/poll` returns raw API key + deviceId in URL.** Not yet

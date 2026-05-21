@@ -493,6 +493,50 @@ export async function checkAndIncrementRateLimit(userId, limitPerDay) {
   return { allowed: count <= limitPerDay, count, limit: limitPerDay };
 }
 
+// ─── Webhook idempotency ──────────────────────────────────────────────────────
+//
+// Dodo retries webhook delivery on any non-2xx response, so a transient
+// failure mid-handler can lead to the same event being processed twice
+// (double-crediting top-ups, double-flipping a plan). markWebhookSeen
+// returns true if the id is fresh (and atomically claims it), or false if
+// already seen — caller should short-circuit on false.
+//
+// 24h TTL is well past Dodo's retry budget (typically minutes-to-hours)
+// while keeping memory bounded.
+
+const WEBHOOK_TTL_SECONDS = 24 * 60 * 60;
+/** In-memory fallback. Bounded by `cleanWebhookSeen` below. */
+const seenWebhooks = new Map();
+
+function cleanWebhookSeen() {
+  if (seenWebhooks.size < 1000) return;
+  const now = Date.now();
+  for (const [k, exp] of seenWebhooks) {
+    if (exp < now) seenWebhooks.delete(k);
+  }
+}
+
+/**
+ * Atomically mark a webhook id as processed. Returns true if this is the
+ * first time we've seen it (caller should process), false if already
+ * processed (caller should ack with 200 and skip the handler).
+ *
+ * @param {string} webhookId
+ * @returns {Promise<boolean>}
+ */
+export async function markWebhookSeen(webhookId) {
+  if (!webhookId || typeof webhookId !== 'string') return true; // can't dedupe → allow
+  if (redis) {
+    // SET ... NX returns 'OK' on fresh insert, null if key already exists.
+    const ok = await redis.set(`webhook:seen:${webhookId}`, '1', 'EX', WEBHOOK_TTL_SECONDS, 'NX');
+    return ok === 'OK';
+  }
+  cleanWebhookSeen();
+  if (seenWebhooks.has(webhookId)) return false;
+  seenWebhooks.set(webhookId, Date.now() + WEBHOOK_TTL_SECONDS * 1000);
+  return true;
+}
+
 // ─── Monthly attachment quota counters ────────────────────────────────────────
 //
 // Keys (current calendar month, YYYYMM):

@@ -23,6 +23,7 @@ import {
   storePendingApiKey,
   getPendingApiKey,
   incrementAttachmentBonus,
+  markWebhookSeen,
 } from '../lib/storage.js';
 import { apiKeyLimiter, ipLimiter } from '../lib/ratelimit.js';
 
@@ -595,6 +596,17 @@ router.post('/webhook', async (req, res) => {
   } catch (err) {
     console.error('[auth] Dodo webhook signature error:', err.message);
     return res.status(400).json({ error: 'Webhook signature invalid' });
+  }
+
+  // Idempotency: Dodo retries on non-2xx, so a transient failure mid-handler
+  // can deliver the same event twice. SETNX-style claim means duplicates
+  // ack with 200 + early return, never processing twice. 24h TTL covers
+  // Dodo's retry window with margin.
+  const webhookId = req.headers['webhook-id'];
+  const fresh = await markWebhookSeen(webhookId);
+  if (!fresh) {
+    console.log(`[auth] Webhook ${webhookId} already processed — skipping`);
+    return res.json({ received: true, deduped: true });
   }
 
   if (!pool) {
