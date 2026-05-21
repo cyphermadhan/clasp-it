@@ -437,6 +437,158 @@ claude mcp add --scope user --transport http clasp-it \
 
 ---
 
+## Next Up — Attachments, Edit Picks, Top-ups, Max Plan
+
+Status: planned, not built. Phasing at the end of this section.
+
+### 1. Attachments (Pro-only)
+
+Let Pro users attach images and short text files to a pick so Claude has the full visual + spec context, not just the DOM.
+
+**UX**
+- Floating dialog gets a paperclip button next to the send button
+- Drag-and-drop onto the dialog also adds attachments
+- Thumbnails strip below the textarea — image previews + filename pills, each with a ✕
+- Pasting an image from clipboard into the textarea adds it as an attachment
+
+**Limits**
+- 3 attachments per pick
+- 5 MB per file
+- Allowed types: images (`png`, `jpg`, `jpeg`, `gif`, `webp`) + text (`md`, `txt`, `json`)
+- Monthly cap: **30 picks-with-attachments per month** on Pro (resets on the 1st)
+- Picks without attachments stay unlimited on Pro
+
+**Storage — Cloudflare R2**
+- Server-proxy upload: extension → `POST /element-context/:id/attachments` (multipart) → server validates type/size/quota → server uploads to R2 → returns attachment metadata
+- R2 keys: `picks/<userId>/<pickId>/<attachmentId>.<ext>`
+- Server holds R2 credentials; extension never touches R2 directly
+- Auto-delete: when `update_pick_status` flips a pick to `completed`, server deletes all R2 objects for that pick (best effort, async)
+
+**MCP integration**
+- `get_element_context`, `get_element_context_by_id`, `list_recent_picks` include an `attachments[]` array on each pick
+- Each attachment: `{ id, filename, mimeType, sizeBytes, url }` where `url` is a signed GET URL with **1 hour** expiry, generated at request time
+- Text attachments are also returned inline (small, useful for prompts/specs); images are URL-only
+
+**Server changes**
+- New: `server/lib/r2.js` — `@aws-sdk/client-s3` wrapper for R2 (put, delete, signed GET)
+- `db.js` — new `attachments` table: `id, pick_id, user_id, r2_key, filename, mime_type, size_bytes, created_at`
+- `storage.js` — extend pick payload to include `attachments[]`; helpers for monthly counter (`attachments_used:<userId>:<YYYY-MM>` in Redis)
+- `auth.js` — extend `PLANS` with attachment caps; quota helper `getAttachmentQuota(userId) → { used, limit, bonus }`
+- `routes/element.js` — three new endpoints (see below)
+- `routes/mcp.js` — populate `attachments[]` with signed URLs; auto-delete hook on `update_pick_status` → completed
+- `package.json` — add `@aws-sdk/client-s3` + `multer`
+
+**New endpoints**
+```
+POST   /element-context/:id/attachments   — multipart upload (1+ files), 409 if pick already pulled
+DELETE /element-context/:id/attachments/:attachmentId — remove before pull
+GET    /element-context/:id/quota         — current month usage + remaining
+```
+
+**Env vars (new)**
+- `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_BASE` (optional, for non-signed URLs)
+
+---
+
+### 2. Edit picks before in_progress
+
+Let users tweak a pick after sending — fix a typo, add a missing screenshot — as long as Claude hasn't pulled it yet.
+
+**UX**
+- Sidepanel history cards with `status === "not_started"` get an edit (pencil) affordance next to the ✕
+- Clicking opens an inline modal in the sidepanel: prompt textarea + attachments list (add/remove)
+- Save → `PATCH /element-context/:id` → card updates in place
+- Cards in `in_progress` or `completed` show no edit affordance
+
+**Server**
+- New: `PATCH /element-context/:id` — accepts `{ prompt?, attachments?: { add: File[], remove: string[] } }`
+- Returns `409 Conflict` if pick status has already been flipped to `in_progress` (Claude pulled it). Extension reacts by closing the modal and refreshing the card status.
+
+---
+
+### 3. Top-up packs
+
+When a Pro user hits the 30-attachment monthly cap, give them a one-tap way to keep going without a plan change.
+
+**Offer**
+- **$5 = +25 picks-with-attachments** for the **current calendar month only** (no rollover)
+- New Dodo product: `DODO_PRODUCT_TOPUP_25`
+- Repeatable — buy multiple packs in one month if needed
+
+**UX (extension)**
+- When monthly cap is hit, the dialog (and the rate-limit banner) show two CTAs:
+  - **Buy +25 ($5)** → Dodo checkout, redirects back to `/verified?topup=success`
+  - **Upgrade to Max** → upgrade flow
+- Settings panel shows "Attachments this month: X / 30 (+N from top-ups)"
+
+**Server**
+- `routes/auth.js` — webhook handler for top-up product: increments `attachments_bonus:<userId>:<YYYY-MM>` in Redis
+- `getAttachmentQuota()` — limit = plan limit + bonus
+- Bonus key TTL: end of current month + 7d grace
+
+---
+
+### 4. Max plan (display only — not building yet)
+
+Pricing-page tease for a higher tier. UI only this round; no server work.
+
+| | Pro | **Max (Coming soon)** |
+|---|---|---|
+| Picks-with-attachments / month | 30 | 100 |
+| Max file size | 5 MB | 25 MB |
+| Price | (existing Pro) | $6.99/mo or $69/yr |
+
+- Add a third pricing card on `Home.jsx` and the `/upgrade` page
+- Card is visually disabled with a "Coming soon" badge — no checkout link, no Dodo product yet
+- Existing Pro features unchanged
+
+---
+
+### Files touched
+
+**Server (new)**
+- `server/lib/r2.js`
+
+**Server (modified)**
+- `server/lib/db.js` — add `attachments` table migration
+- `server/lib/storage.js` — pick payload includes `attachments[]`; monthly counter helpers
+- `server/lib/auth.js` — `PLANS` gains attachment caps + Max entry; `getAttachmentQuota()`
+- `server/routes/element.js` — 3 new endpoints (upload, delete, quota) + `PATCH /element-context/:id`
+- `server/routes/auth.js` — top-up Dodo product webhook + checkout endpoint
+- `server/routes/mcp.js` — attachment URLs in tool output + auto-delete on `completed`
+- `server/package.json` — `@aws-sdk/client-s3`, `multer`
+
+**Extension**
+- `extension/content.js` — paperclip button, drop zone, thumbnail strip, file input, edit-mode wiring
+- `extension/sidepanel.js` — edit modal, attachment badges on history cards, quota UX, monthly usage line in settings
+- `extension/styles.css` — attachment thumbnails, drop zone hover, edit modal styles
+
+**Website**
+- `website/src/pages/home/Home.jsx` — Max card + Pro feature list update (mention attachments)
+- `website/src/pages/upgrade/Upgrade.jsx` — note about attachment quota on Pro
+
+**Docs**
+- `PLAN.md` — this section
+- `CLAUDE.md` — strip stale `$19 one-time` line; update Plans table when shipping
+
+---
+
+### Phasing
+
+Build top-down so each phase is testable end-to-end:
+
+1. **Storage primitives** — `r2.js`, `attachments` table migration, `PLANS` updates with caps, monthly counter helpers in Redis
+2. **Pick mutations** — attachment upload/delete endpoints + `PATCH /element-context/:id` (with 409 on already-pulled) + auto-delete on completed
+3. **MCP integration** — attachments in tool responses with signed GET URLs; verify Claude can read images via URL
+4. **Top-ups** — new Dodo product + webhook + bonus counter + checkout endpoint
+5. **Extension UI** — floating-dialog paperclip + thumbnails + drop zone; sidepanel edit modal + quota strip
+6. **Website** — Max card (display only) + Pro copy update
+7. **Doc cleanup** — finalise PLAN.md, strip stale lines from CLAUDE.md, update Plans table
+
+Phase 1 unblocks 2–4 in parallel; phase 5 needs 2 + 3 done; phase 6 + 7 can land any time after 1.
+
+---
+
 ## Future Refinements
 
 ### Projects (Pro plan only)

@@ -71,6 +71,19 @@ export async function initSchema() {
 
     ALTER TABLE picks ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'not_started';
 
+    CREATE TABLE IF NOT EXISTS attachments (
+      id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      pick_id     TEXT NOT NULL,
+      user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      r2_key      TEXT NOT NULL,
+      filename    TEXT NOT NULL,
+      mime_type   TEXT NOT NULL,
+      size_bytes  INTEGER NOT NULL,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    CREATE INDEX IF NOT EXISTS attachments_pick_id_idx ON attachments(pick_id);
+    CREATE INDEX IF NOT EXISTS attachments_user_id_idx ON attachments(user_id);
   `);
 
   console.log('[db] Schema initialised');

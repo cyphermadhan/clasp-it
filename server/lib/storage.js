@@ -198,6 +198,92 @@ export async function getPickStatuses(userId, ids) {
   return result;
 }
 
+// ─── Pick-level mutations (prompt + attachments) ──────────────────────────────
+//
+// Each mutator walks the user's pick list, finds the matching pick, applies a
+// transform, and writes it back. Returns the mutated pick or null.
+
+async function mutatePick(userId, pickId, transform) {
+  const key = memKey(userId);
+
+  if (redis) {
+    const raws = await redis.lrange(key, 0, -1);
+    for (let i = 0; i < raws.length; i++) {
+      const pick = deserialize(raws[i]);
+      if (pick?.id === pickId) {
+        const next = transform(pick);
+        if (!next) return null;
+        await redis.lset(key, i, serialize(next));
+        return next;
+      }
+    }
+    return null;
+  }
+
+  const list = memStore.get(key) ?? [];
+  for (let i = 0; i < list.length; i++) {
+    const pick = deserialize(list[i]);
+    if (pick?.id === pickId) {
+      const next = transform(pick);
+      if (!next) return null;
+      list[i] = serialize(next);
+      memStore.set(key, list);
+      return next;
+    }
+  }
+  return null;
+}
+
+/**
+ * Update the prompt text on a pick. Returns the updated pick or null.
+ * @param {string} userId
+ * @param {string} pickId
+ * @param {string} prompt
+ */
+export async function updatePickPrompt(userId, pickId, prompt) {
+  return mutatePick(userId, pickId, (pick) => ({ ...pick, prompt }));
+}
+
+/**
+ * Append an attachment record to a pick's attachments list.
+ * Returns the updated pick or null.
+ * @param {string} userId
+ * @param {string} pickId
+ * @param {object} attachment  { id, filename, mimeType, sizeBytes, r2Key }
+ */
+export async function addAttachmentToPick(userId, pickId, attachment) {
+  return mutatePick(userId, pickId, (pick) => {
+    const attachments = Array.isArray(pick.attachments) ? [...pick.attachments] : [];
+    attachments.push(attachment);
+    return { ...pick, attachments };
+  });
+}
+
+/**
+ * Remove an attachment by attachmentId from a pick's attachments list.
+ * Returns the updated pick or null.
+ * @param {string} userId
+ * @param {string} pickId
+ * @param {string} attachmentId
+ */
+export async function removeAttachmentFromPick(userId, pickId, attachmentId) {
+  return mutatePick(userId, pickId, (pick) => {
+    const attachments = (pick.attachments ?? []).filter((a) => a.id !== attachmentId);
+    return { ...pick, attachments };
+  });
+}
+
+/**
+ * Return the attachments array for a pick (empty array if none).
+ * @param {string} userId
+ * @param {string} pickId
+ * @returns {Promise<object[]>}
+ */
+export async function getAttachmentsForPick(userId, pickId) {
+  const pick = await getPickById(userId, pickId);
+  return pick?.attachments ?? [];
+}
+
 // ─── Device verification store (for magic link polling) ───────────────────────
 
 /** In-memory fallback for device verifications. */
@@ -337,6 +423,103 @@ export async function checkAndIncrementRateLimit(userId, limitPerDay) {
   const count = prev + 1;
   inMemStore.set(key, count);
   return { allowed: count <= limitPerDay, count, limit: limitPerDay };
+}
+
+// ─── Monthly attachment quota counters ────────────────────────────────────────
+//
+// Keys (current calendar month, YYYYMM):
+//   attachments_used:<userId>:<YYYYMM>   — picks-with-attachments this month
+//   attachments_bonus:<userId>:<YYYYMM>  — top-up packs purchased this month
+//
+// Both keys live ~40 days so they age out naturally after the month ends.
+
+const MONTH_TTL_SECONDS = 40 * 24 * 60 * 60;
+
+function currentYearMonth() {
+  const d = new Date();
+  return `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function attachmentsUsedKey(userId, ym = currentYearMonth()) {
+  return `attachments_used:${userId}:${ym}`;
+}
+
+function attachmentsBonusKey(userId, ym = currentYearMonth()) {
+  return `attachments_bonus:${userId}:${ym}`;
+}
+
+/** In-memory fallback for monthly counters (dev only). */
+const monthlyCounterStore = new Map();
+
+function memCounterGet(key) {
+  return monthlyCounterStore.get(key) ?? 0;
+}
+
+function memCounterIncr(key, by = 1) {
+  const next = memCounterGet(key) + by;
+  monthlyCounterStore.set(key, next);
+  return next;
+}
+
+/**
+ * Read the current month's picks-with-attachments count for a user.
+ * @param {string} userId
+ * @returns {Promise<number>}
+ */
+export async function getAttachmentsUsed(userId) {
+  const key = attachmentsUsedKey(userId);
+  if (redis) {
+    const raw = await redis.get(key);
+    return raw ? parseInt(raw, 10) : 0;
+  }
+  return memCounterGet(key);
+}
+
+/**
+ * Atomically increment the picks-with-attachments counter (called once per
+ * pick that has at least one attachment). Returns the new count.
+ * @param {string} userId
+ * @returns {Promise<number>}
+ */
+export async function incrementAttachmentsUsed(userId) {
+  const key = attachmentsUsedKey(userId);
+  if (redis) {
+    const count = await redis.incr(key);
+    if (count === 1) await redis.expire(key, MONTH_TTL_SECONDS);
+    return count;
+  }
+  return memCounterIncr(key, 1);
+}
+
+/**
+ * Read the current month's bonus pick count from purchased top-up packs.
+ * @param {string} userId
+ * @returns {Promise<number>}
+ */
+export async function getAttachmentBonus(userId) {
+  const key = attachmentsBonusKey(userId);
+  if (redis) {
+    const raw = await redis.get(key);
+    return raw ? parseInt(raw, 10) : 0;
+  }
+  return memCounterGet(key);
+}
+
+/**
+ * Add to the current month's bonus counter (called by the top-up webhook).
+ * @param {string} userId
+ * @param {number} amount  e.g. 25 for the $5 pack
+ * @returns {Promise<number>} new total
+ */
+export async function incrementAttachmentBonus(userId, amount) {
+  const key = attachmentsBonusKey(userId);
+  if (redis) {
+    const count = await redis.incrby(key, amount);
+    // Always reset TTL on a top-up so the bonus survives the rest of the month.
+    await redis.expire(key, MONTH_TTL_SECONDS);
+    return count;
+  }
+  return memCounterIncr(key, amount);
 }
 
 // ─── Expose redis client ──────────────────────────────────────────────────────

@@ -64,7 +64,7 @@ clasp/
 |--|------|-----|
 | Picks/day | 10 | Unlimited |
 | Screenshot, console, network, React props | ✗ | ✅ |
-| Pricing | Free (email required) | $19 one-time |
+| Pricing | Free (email required) | Subscription via Dodo |
 
 ## Key env vars (Railway)
 - `DATABASE_URL` — Neon connection string (`sslmode=require` — never `verify-full`)

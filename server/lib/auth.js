@@ -11,20 +11,49 @@
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { pool } from './db.js';
-import { redis } from './storage.js';
+import { redis, getAttachmentsUsed, getAttachmentBonus } from './storage.js';
 
 // ─── Plan definitions ─────────────────────────────────────────────────────────
+
+const FIVE_MB = 5 * 1024 * 1024;
+const TWENTYFIVE_MB = 25 * 1024 * 1024;
+
+const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+const ALLOWED_TEXT_TYPES = ['text/markdown', 'text/plain', 'application/json'];
+const ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_TEXT_TYPES];
 
 export const PLANS = {
   free: {
     picksPerDay: 10,
     proToggles: false,
     historyLimit: 5,
+    // No attachments on free.
+    attachmentsPerPick: 0,
+    attachmentsPerMonth: 0,
+    maxFileSizeBytes: 0,
+    attachmentTypesAllowed: [],
   },
   pro: {
     picksPerDay: Infinity,
     proToggles: true,
     historyLimit: 50,
+    attachmentsPerPick: 3,
+    attachmentsPerMonth: 30, // monthly cap on picks-that-have-attachments
+    maxFileSizeBytes: FIVE_MB,
+    attachmentTypesAllowed: ALLOWED_TYPES,
+  },
+  // Display-only for now. Server treats max users as pro for billing/feature
+  // gating until the plan is actually launched; the entry exists so the
+  // pricing page and quota helpers can reference it.
+  max: {
+    picksPerDay: Infinity,
+    proToggles: true,
+    historyLimit: 200,
+    attachmentsPerPick: 3,
+    attachmentsPerMonth: 100,
+    maxFileSizeBytes: TWENTYFIVE_MB,
+    attachmentTypesAllowed: ALLOWED_TYPES,
+    comingSoon: true,
   },
 };
 
@@ -222,4 +251,27 @@ export function gatePayload(payload, plan) {
   }
 
   return gated;
+}
+
+// ─── Attachment quota ─────────────────────────────────────────────────────────
+
+/**
+ * Return the current month's attachment quota for a user.
+ *
+ * `limit` is the plan's monthly base; `bonus` is the sum of any top-up packs
+ * purchased this month; `remaining` is `limit + bonus - used`, never negative.
+ *
+ * @param {string} userId
+ * @param {string} plan
+ * @returns {Promise<{ used: number, limit: number, bonus: number, remaining: number }>}
+ */
+export async function getAttachmentQuota(userId, plan) {
+  const planDef = PLANS[plan] ?? PLANS.free;
+  const limit = planDef.attachmentsPerMonth ?? 0;
+  const [used, bonus] = await Promise.all([
+    getAttachmentsUsed(userId),
+    getAttachmentBonus(userId),
+  ]);
+  const remaining = Math.max(0, limit + bonus - used);
+  return { used, limit, bonus, remaining };
 }

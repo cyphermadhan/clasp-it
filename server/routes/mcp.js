@@ -27,6 +27,48 @@ import {
   updatePickStatus,
 } from '../lib/storage.js';
 import { requireApiKey } from '../lib/auth.js';
+import { getSignedUrl, deleteObjects, r2Enabled } from '../lib/r2.js';
+import { pool } from '../lib/db.js';
+
+// ─── Attachment enrichment ────────────────────────────────────────────────────
+// Replaces each attachment's r2Key with a 1-hour signed GET URL. Returns a
+// shallow copy of the pick so we don't mutate Redis-backed state.
+
+const ATTACHMENT_URL_TTL = 60 * 60; // 1 hour, per spec
+
+async function enrichAttachments(pick) {
+  if (!pick) return pick;
+  const attachments = pick.attachments;
+  if (!Array.isArray(attachments) || attachments.length === 0) return pick;
+  if (!r2Enabled) return pick;
+
+  const enriched = await Promise.all(
+    attachments.map(async (a) => {
+      const url = await getSignedUrl(a.r2Key, ATTACHMENT_URL_TTL).catch(() => null);
+      // Strip r2Key from MCP output — clients don't need it; URL is what they use.
+      const { r2Key: _r2, ...rest } = a;
+      return { ...rest, url };
+    }),
+  );
+
+  return { ...pick, attachments: enriched };
+}
+
+// ─── Auto-delete attachments when a pick is marked completed ──────────────────
+
+async function purgeAttachmentsForPick(userId, pick) {
+  const attachments = pick?.attachments ?? [];
+  if (attachments.length === 0) return;
+
+  const keys = attachments.map((a) => a.r2Key).filter(Boolean);
+  await deleteObjects(keys);
+
+  if (pool) {
+    await pool
+      .query('DELETE FROM attachments WHERE pick_id = $1 AND user_id = $2', [pick.id, userId])
+      .catch((err) => console.warn('[mcp] DB attachment purge failed:', err.message));
+  }
+}
 
 const router = Router();
 
@@ -129,12 +171,13 @@ function createMcpServer(userId) {
             // Auto-mark as in_progress when Claude reads it
             updatePickStatus(userId, pick.id, 'in_progress').catch(() => {});
           }
+          const enriched = await enrichAttachments(pick);
           return {
             content: [
               {
                 type: 'text',
-                text: pick
-                  ? JSON.stringify(pick, null, 2)
+                text: enriched
+                  ? JSON.stringify(enriched, null, 2)
                   : 'No element context found. Use the browser extension to pick an element first.',
               },
             ],
@@ -153,12 +196,13 @@ function createMcpServer(userId) {
           if (pick) {
             updatePickStatus(userId, pick.id, 'in_progress').catch(() => {});
           }
+          const enriched = await enrichAttachments(pick);
           return {
             content: [
               {
                 type: 'text',
-                text: pick
-                  ? JSON.stringify(pick, null, 2)
+                text: enriched
+                  ? JSON.stringify(enriched, null, 2)
                   : `No pick found with id: ${id}`,
               },
             ],
@@ -168,13 +212,14 @@ function createMcpServer(userId) {
         case 'list_recent_picks': {
           const limit = Math.min(Math.max(parseInt(args.limit ?? 10, 10), 1), 20);
           const picks = await listRecentPicks(userId, limit);
+          const enriched = await Promise.all(picks.map(enrichAttachments));
           return {
             content: [
               {
                 type: 'text',
                 text:
-                  picks.length > 0
-                    ? `Found ${picks.length} pick(s):\n\n${JSON.stringify(picks, null, 2)}`
+                  enriched.length > 0
+                    ? `Found ${enriched.length} pick(s):\n\n${JSON.stringify(enriched, null, 2)}`
                     : 'No picks found. Use the browser extension to pick some elements first.',
               },
             ],
@@ -203,7 +248,19 @@ function createMcpServer(userId) {
               isError: true,
             };
           }
+
+          // Capture the pick before flipping status so we still know the
+          // attachment list when we go to purge. Best-effort — null if missing.
+          const before = status === 'completed' ? await getPickById(userId, id) : null;
           const updated = await updatePickStatus(userId, id, status);
+
+          if (status === 'completed' && before) {
+            // Don't block the MCP response on R2/DB cleanup.
+            purgeAttachmentsForPick(userId, before).catch((err) =>
+              console.warn('[mcp] purgeAttachmentsForPick failed:', err.message),
+            );
+          }
+
           return {
             content: [{
               type: 'text',

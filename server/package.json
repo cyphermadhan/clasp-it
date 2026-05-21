@@ -10,6 +10,8 @@
     "build:extension": "cd .. && zip -r server/public/downloads/clasp-it-extension.zip extension/ -x '*.DS_Store' -x '__MACOSX/*' -x '*.git*'"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.658.0",
+    "@aws-sdk/s3-request-presigner": "^3.658.0",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@vibesignals/observe": "^1.0.0-b1",
     "cors": "^2.8.5",
@@ -17,6 +19,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "ioredis": "^5.3.2",
+    "multer": "^2.0.0",
     "pg": "^8.11.5",
     "resend": "^4.0.0",
     "uuid": "^10.0.0"
