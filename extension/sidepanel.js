@@ -1419,6 +1419,19 @@ document.querySelectorAll(".sp-mcp-code").forEach(el => {
   });
 });
 
+// Click-to-copy on the Claude tip card — copies the prompt phrase so the
+// user can paste it into their AI editor.
+document.getElementById("sp-claude-tip")?.addEventListener("click", function () {
+  const text = this.dataset.copy;
+  const span = this.querySelector("span");
+  if (!text || !span) return;
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = span.innerHTML;
+    span.innerHTML = "<strong>Copied!</strong>";
+    setTimeout(() => { span.innerHTML = orig; }, 1500);
+  }).catch(() => {});
+});
+
 // ── Cleanup on panel close ────────────────────────────────────────────────────
 
 window.addEventListener("pagehide", async () => {

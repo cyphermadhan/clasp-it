@@ -625,7 +625,10 @@
       display: flex;
       align-items: flex-start;
       gap: 7px;
+      cursor: pointer;
+      transition: background 0.1s, border-color 0.1s;
     }
+    .sp-claude-tip:hover { background: var(--border-faint); border-color: var(--border-medium); }
 
     /* ── MCP setup ── */
     .sp-mcp-setup {
@@ -788,7 +791,8 @@
       </div>
     </div>
     <div class="sp-history-header"><span>Recent picks</span><span id="sp-picks-counter"></span></div>
-    <div id="sp-claude-tip" class="sp-claude-tip" style="display:none">
+    <div id="sp-claude-tip" class="sp-claude-tip" style="display:none"
+         data-copy="fix all recent picks using clasp-it" title="Click to copy">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <span>Open your AI editor and say<br><strong>"fix all recent picks using clasp-it"</strong></span>
     </div>
