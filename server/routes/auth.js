@@ -24,6 +24,7 @@ import {
   getPendingApiKey,
   incrementAttachmentBonus,
   markWebhookSeen,
+  recordSignupAttempt,
 } from '../lib/storage.js';
 import { apiKeyLimiter, ipLimiter } from '../lib/ratelimit.js';
 
@@ -194,6 +195,17 @@ router.post('/signup', async (req, res) => {
     return res.status(400).json({ error: 'Valid email is required' });
   }
 
+  // Per-email rate limit. Prevents the IP-rotated inbox-bombing vector
+  // (audit #23). Normalize the email the same way as the DB upsert below,
+  // so case/whitespace variations can't bypass the counter.
+  const normalizedEmail = email.toLowerCase().trim();
+  const attempt = await recordSignupAttempt(normalizedEmail);
+  if (!attempt.allowed) {
+    return res.status(429).json({
+      error: 'Too many sign-in requests for this email. Try again in an hour, or check your inbox for a previous magic link.',
+    });
+  }
+
   if (!pool) {
     return res.status(503).json({ error: 'Database not available in dev mode — set DATABASE_URL' });
   }
@@ -205,7 +217,7 @@ router.post('/signup', async (req, res) => {
        VALUES ($1)
        ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
        RETURNING id`,
-      [email.toLowerCase().trim()],
+      [normalizedEmail],
     );
     const userId = userResult.rows[0].id;
 

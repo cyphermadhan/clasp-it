@@ -493,6 +493,63 @@ export async function checkAndIncrementRateLimit(userId, limitPerDay) {
   return { allowed: count <= limitPerDay, count, limit: limitPerDay };
 }
 
+// ─── Per-email signup rate limit ──────────────────────────────────────────────
+//
+// The IP-based limiter on /auth/signup catches a single attacker hammering
+// from one address. It does NOT catch a botnet / proxy rotation attacking
+// a specific TARGET inbox — each request comes from a different IP, the IP
+// limiter never trips, and the target's mailbox fills with magic-link
+// emails on our Resend bill.
+//
+// This counter is keyed by the (normalized) target email. 5 attempts/hour
+// is generous for legit retypes/typos and tight enough to make spam
+// uneconomic.
+
+const SIGNUP_LIMIT_TTL_SECONDS = 60 * 60;
+const SIGNUP_LIMIT_PER_EMAIL = 5;
+/** In-memory fallback. Cleaned lazily when it grows. */
+const signupAttemptStore = new Map();
+
+function cleanSignupAttempts() {
+  if (signupAttemptStore.size < 1000) return;
+  const now = Date.now();
+  for (const [k, entry] of signupAttemptStore) {
+    if (entry.expires < now) signupAttemptStore.delete(k);
+  }
+}
+
+/**
+ * Atomically increment the signup-attempt counter for a given email and
+ * report whether the attempt is allowed.
+ *
+ * @param {string} email  Caller is responsible for trimming + lowercasing.
+ * @returns {Promise<{ allowed: boolean, count: number, limit: number }>}
+ */
+export async function recordSignupAttempt(email) {
+  if (!email) return { allowed: true, count: 0, limit: SIGNUP_LIMIT_PER_EMAIL };
+  const key = `signup:email:${email}`;
+
+  if (redis) {
+    const count = await redis.incr(key);
+    if (count === 1) await redis.expire(key, SIGNUP_LIMIT_TTL_SECONDS);
+    return { allowed: count <= SIGNUP_LIMIT_PER_EMAIL, count, limit: SIGNUP_LIMIT_PER_EMAIL };
+  }
+
+  cleanSignupAttempts();
+  const now = Date.now();
+  const entry = signupAttemptStore.get(key);
+  if (!entry || entry.expires < now) {
+    signupAttemptStore.set(key, { count: 1, expires: now + SIGNUP_LIMIT_TTL_SECONDS * 1000 });
+    return { allowed: true, count: 1, limit: SIGNUP_LIMIT_PER_EMAIL };
+  }
+  entry.count += 1;
+  return {
+    allowed: entry.count <= SIGNUP_LIMIT_PER_EMAIL,
+    count: entry.count,
+    limit: SIGNUP_LIMIT_PER_EMAIL,
+  };
+}
+
 // ─── Webhook idempotency ──────────────────────────────────────────────────────
 //
 // Dodo retries webhook delivery on any non-2xx response, so a transient
