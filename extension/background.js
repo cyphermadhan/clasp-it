@@ -10,9 +10,21 @@ let networkRequestBuffer = [];
 // Content script intercepts console and forwards CONSOLE_LOG messages here.
 
 // ── Network request buffering via webRequest ──────────────────────────────────
+//
+// Listens on <all_urls> so Pro users can capture network context for any page
+// they pick from. We deliberately filter out our OWN server's traffic — those
+// requests carry sensitive material (API key in Authorization headers, deviceId
+// in legacy /auth/poll/:deviceId URLs) that has no business landing in a pick
+// payload, getting echoed to the user's AI editor, and potentially their
+// transcripts. The user's webpage traffic is the only thing of debugging
+// interest here.
+
+const SELF_HOST_RE = /^https?:\/\/(?:[^/]*\.)?claspit\.dev(?::\d+)?\//i;
+
 if (chrome.webRequest) {
   chrome.webRequest.onCompleted.addListener(
     (details) => {
+      if (SELF_HOST_RE.test(details.url)) return;
       networkRequestBuffer.push({
         url: details.url,
         method: details.method,
