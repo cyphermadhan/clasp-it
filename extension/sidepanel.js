@@ -277,7 +277,7 @@ async function getActiveTab() {
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "ELEMENT_PICKED") {
     if (message.quickSend) {
-      handleQuickSend(message.elementData, message.prompt || "");
+      handleQuickSend(message.elementData, message.prompt || "", message.attachments || []);
     } else {
       showPicked(message.elementData);
     }
@@ -402,19 +402,20 @@ async function handleSend() {
   }
 }
 
-async function handleQuickSend(elementData, prompt = "") {
+async function handleQuickSend(elementData, prompt = "", attachments = []) {
   app.currentElement = elementData;
   const label = elementData.tagName + (elementData.classList?.[0] ? `.${elementData.classList[0]}` : "");
 
   // Optimistically add a "sending" history card and switch to main immediately
   const item = {
-    id:           crypto.randomUUID(),
-    pickId:       null,
-    elementLabel: label,
-    pageURL:      elementData.pageURL || "",
+    id:              crypto.randomUUID(),
+    pickId:          null,
+    elementLabel:    label,
+    pageURL:         elementData.pageURL || "",
     prompt,
-    status:       "not_started",
-    sentAt:       Date.now(),
+    status:          "not_started",
+    sentAt:          Date.now(),
+    attachmentCount: attachments.length,
   };
   await addHistoryItem(item);
   showScreen("main");
@@ -426,6 +427,21 @@ async function handleQuickSend(elementData, prompt = "") {
     app.history = app.history.map(h => h.id === item.id ? { ...h, pickId: result.pickId } : h);
     await storageSet({ clasp_history: app.history });
     if (app.screen === "main") renderHistory();
+
+    // Upload attachments after the pick is known (best-effort, async).
+    if (attachments.length > 0) {
+      const upload = await uploadAttachments(result.pickId, attachments);
+      if (upload.error) {
+        app.history = app.history.map(h =>
+          h.id === item.id
+            ? { ...h, attachmentCount: 0, attachmentError: upload.error }
+            : h,
+        );
+        await storageSet({ clasp_history: app.history });
+        if (app.screen === "main") renderHistory();
+        if (upload.status === 429) app.attachmentQuotaHit = true;
+      }
+    }
   } else {
     // Remove the failed history item
     app.history = app.history.filter(h => h.id !== item.id);
@@ -440,6 +456,48 @@ async function handleQuickSend(elementData, prompt = "") {
       renderHistory();
       updatePickButton();
     }
+  }
+}
+
+// ── Attachments upload ──────────────────────────────────────────────────────
+
+function dataURLToBlob(dataURL) {
+  const [header, b64] = dataURL.split(",");
+  const mimeMatch = header.match(/^data:([^;]+)/);
+  const mime = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+  const bytes = atob(b64);
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+async function uploadAttachments(pickId, attachments) {
+  if (!attachments?.length) return { ok: true };
+
+  const form = new FormData();
+  for (const att of attachments) {
+    try {
+      const blob = dataURLToBlob(att.dataUrl);
+      form.append("files", blob, att.filename);
+    } catch {
+      // skip malformed entries silently
+    }
+  }
+
+  try {
+    const res = await fetch(`${SERVER_URL}/element-context/${pickId}/attachments`, {
+      method: "POST",
+      headers: app.apiKey ? { "Authorization": `Bearer ${app.apiKey}` } : {},
+      body: form,
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return { error: data.error || `Upload failed (${res.status})`, status: res.status };
+    }
+    const data = await res.json().catch(() => ({}));
+    return { ok: true, attachments: data.attachments, quota: data.quota };
+  } catch (err) {
+    return { error: err.message };
   }
 }
 
@@ -530,6 +588,46 @@ function setStatus(msg, type = "") {
   if (!el) return;
   el.textContent = msg;
   el.className = "sp-status-line" + (type ? " " + type : "");
+}
+
+// ── Attachment quota + top-up checkout ──────────────────────────────────────
+
+async function fetchQuota() {
+  if (!app.apiKey || app.plan === "free") return null;
+  try {
+    const res = await fetch(`${SERVER_URL}/element-context/quota`, {
+      headers: { "Authorization": `Bearer ${app.apiKey}` },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+async function startTopupCheckout() {
+  const btn = document.getElementById("settings-topup-btn");
+  const original = btn?.textContent;
+  if (btn) { btn.disabled = true; btn.textContent = "Opening…"; }
+  try {
+    const res = await fetch(`${SERVER_URL}/billing/checkout/topup`, {
+      method: "POST",
+      headers: app.apiKey ? { "Authorization": `Bearer ${app.apiKey}` } : {},
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data.url) {
+      chrome.tabs.create({ url: data.url });
+    } else if (btn) {
+      btn.textContent = data.error || "Try again";
+    }
+  } catch (err) {
+    if (btn) btn.textContent = "Network error";
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      setTimeout(() => { if (btn.textContent !== original) btn.textContent = original; }, 3000);
+    }
+  }
 }
 
 async function startCheckout() {
@@ -646,6 +744,18 @@ function renderHistory() {
       promptEl.className = "sp-history-prompt";
       promptEl.textContent = item.prompt;
       body.appendChild(promptEl);
+    }
+
+    if (item.attachmentCount > 0) {
+      const att = document.createElement("div");
+      att.className = "sp-history-attach";
+      att.textContent = `📎 ${item.attachmentCount} attachment${item.attachmentCount > 1 ? "s" : ""}`;
+      body.appendChild(att);
+    } else if (item.attachmentError) {
+      const att = document.createElement("div");
+      att.className = "sp-history-attach-error";
+      att.textContent = `Attachment failed: ${item.attachmentError}`;
+      body.appendChild(att);
     }
 
     const meta = document.createElement("div");
@@ -815,7 +925,12 @@ document.getElementById("settings-key-chip").addEventListener("click", () => {
   if (app.apiKey) navigator.clipboard.writeText(app.apiKey).catch(() => {});
 });
 
-function renderSettings() {
+document.getElementById("settings-topup-btn")?.addEventListener("click", (e) => {
+  e.preventDefault();
+  startTopupCheckout();
+});
+
+async function renderSettings() {
   document.getElementById("settings-email").textContent = app.email || "—";
 
   const badge = document.getElementById("settings-plan-badge");
@@ -850,6 +965,34 @@ function renderSettings() {
     if (windsurfCfg) windsurfCfg.textContent = windsurfCfg.textContent.replace("YOUR_KEY", masked);
     const otherHeader = document.getElementById("sp-mcp-other-header");
     if (otherHeader) otherHeader.textContent = otherHeader.textContent.replace("YOUR_KEY", masked);
+  }
+
+  // Attachment quota — Pro only
+  const quotaCard = document.getElementById("settings-quota-card");
+  if (!quotaCard) return;
+  if (app.plan === "free") {
+    quotaCard.style.display = "none";
+    return;
+  }
+
+  quotaCard.style.display = "";
+  const valueEl = document.getElementById("settings-quota-value");
+  const bonusRow = document.getElementById("settings-quota-bonus-row");
+  const bonusEl = document.getElementById("settings-quota-bonus");
+
+  if (valueEl) valueEl.textContent = "loading…";
+  if (bonusRow) bonusRow.style.display = "none";
+
+  const q = await fetchQuota();
+  if (!q) {
+    if (valueEl) valueEl.textContent = "—";
+    return;
+  }
+
+  if (valueEl) valueEl.textContent = `${q.used} / ${q.limit}`;
+  if (q.bonus > 0 && bonusRow && bonusEl) {
+    bonusRow.style.display = "";
+    bonusEl.textContent = `+${q.bonus}`;
   }
 }
 

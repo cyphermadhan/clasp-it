@@ -279,6 +279,16 @@
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
+    .sp-history-attach {
+      font-size: 11px; color: var(--text-tertiary); margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .sp-history-attach-error {
+      font-size: 11px; color: var(--text-danger); margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
     .sp-status-badge {
       display: inline-flex; align-items: center;
       padding: 2px 7px; border-radius: var(--radius-full);
@@ -812,6 +822,21 @@
       <span class="sp-card-label">API Key</span>
       <span id="settings-key-chip" class="sp-key-chip" title="Click to copy">—</span>
     </div>
+  </div>
+
+  <!-- Attachments quota — Pro only (hidden for free) -->
+  <div class="sp-card" id="settings-quota-card" style="display:none">
+    <div class="sp-card-row">
+      <span class="sp-card-label">Attachments this month</span>
+      <span id="settings-quota-value" class="sp-card-value">— / —</span>
+    </div>
+    <div class="sp-card-row" id="settings-quota-bonus-row" style="display:none">
+      <span class="sp-card-label">Bonus (top-ups)</span>
+      <span id="settings-quota-bonus" class="sp-card-value">+0</span>
+    </div>
+    <button id="settings-topup-btn" class="sp-link" style="background:none;border:none;cursor:pointer;text-align:left;padding:0;font:inherit">
+      Buy +25 picks ($5) →
+    </button>
   </div>
 
   <!-- MCP setup — collapsible -->

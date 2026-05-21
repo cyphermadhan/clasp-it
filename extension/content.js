@@ -20,6 +20,23 @@ let tooltip = null;
 let floatingDialog = null;
 let currentTarget = null;
 
+// ── Attachment limits (must mirror server PLANS.pro) ─────────────────────────
+const ATTACHMENT_MAX_COUNT = 3;
+const ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+const ATTACHMENT_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "text/markdown",
+  "text/plain",
+  "application/json",
+];
+
+/** Files staged for the current pick. Cleared on submit / cancel.
+ *  Each entry: { id, file, dataUrl, isImage } */
+let attachedFiles = [];
+
 // ── Console interception (forwards to background for buffering) ───────────────
 (function interceptConsole() {
   const levels = ["log", "warn", "error", "info", "debug"];
@@ -222,7 +239,15 @@ function createFloatingDialog() {
       <div id="clasp-float-row-text">
         <textarea id="clasp-float-input" placeholder="What to change?" rows="2" autocomplete="off" spellcheck="false"></textarea>
       </div>
+      <div id="clasp-float-thumbs"></div>
+      <div id="clasp-float-error"></div>
       <div id="clasp-float-row-actions">
+        <button id="clasp-float-attach" title="Attach files (3 max, 5 MB each)">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11.7188 7.05L7.0625 11.7C5.69 13.0719 3.45 13.0719 2.0781 11.7C0.706253 10.3281 0.706253 8.0875 2.0781 6.7156L7.5781 1.2156C8.4906 0.30312 9.9719 0.30312 10.8844 1.2156C11.7969 2.1281 11.7969 3.6094 10.8844 4.5219L5.5781 9.8281C5.121 10.2854 4.379 10.2854 3.9219 9.8281C3.4646 9.371 3.4646 8.629 3.9219 8.1719L8.6094 3.4844" stroke="#73726c" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <input type="file" id="clasp-float-file-input" multiple accept="${ATTACHMENT_TYPES.join(",")}" style="display:none" />
         <button id="clasp-float-submit" title="Send">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M13.0306 7.53062C12.9609 7.60054 12.8781 7.65602 12.787 7.69387C12.6958 7.73173 12.5981 7.75121 12.4993 7.75121C12.4006 7.75121 12.3029 7.73173 12.2117 7.69387C12.1206 7.65602 12.0378 7.60054 11.9681 7.53062L8.74997 4.31249V13.5C8.74997 13.6989 8.67095 13.8897 8.5303 14.0303C8.38965 14.171 8.19889 14.25 7.99997 14.25C7.80106 14.25 7.61029 14.171 7.46964 14.0303C7.32899 13.8897 7.24997 13.6989 7.24997 13.5L7.24997 4.31249L4.0306 7.53062C3.8897 7.67152 3.69861 7.75067 3.49935 7.75067C3.30009 7.75067 3.10899 7.67152 2.9681 7.53062C2.8272 7.38972 2.74805 7.19863 2.74805 6.99937C2.74805 6.80011 2.8272 6.60902 2.9681 6.46812L7.4681 1.96812C7.53778 1.8982 7.62057 1.84272 7.71173 1.80487C7.8029 1.76701 7.90064 1.74753 7.99935 1.74753C8.09806 1.74753 8.1958 1.76701 8.28696 1.80487C8.37813 1.84272 8.46092 1.8982 8.5306 1.96812L13.0306 6.46812C13.1005 6.5378 13.156 6.62059 13.1938 6.71176C13.2317 6.80292 13.2512 6.90066 13.2512 6.99937C13.2512 7.09808 13.2317 7.19582 13.1938 7.28698C13.156 7.37815 13.1005 7.46094 13.0306 7.53062Z" fill="white"/>
@@ -237,6 +262,7 @@ function createFloatingDialog() {
 
   document.getElementById("clasp-float-close").addEventListener("click", (e) => {
     e.stopPropagation();
+    clearAttachments();
     deactivatePicker();
     chrome.runtime.sendMessage({ type: "PICKER_CANCELLED" }).catch(() => {});
   });
@@ -254,9 +280,38 @@ function createFloatingDialog() {
     }
     if (e.key === "Escape") {
       e.stopPropagation();
+      clearAttachments();
       deactivatePicker();
       chrome.runtime.sendMessage({ type: "PICKER_CANCELLED" }).catch(() => {});
     }
+  });
+
+  // Attach button → open file picker
+  const fileInput = document.getElementById("clasp-float-file-input");
+  document.getElementById("clasp-float-attach").addEventListener("click", (e) => {
+    e.stopPropagation();
+    fileInput.click();
+  });
+  fileInput.addEventListener("change", (e) => {
+    addFiles([...e.target.files]);
+    e.target.value = ""; // allow picking the same file again
+  });
+
+  // Drag-and-drop onto the dialog
+  div.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    div.classList.add("clasp-drag");
+  });
+  div.addEventListener("dragleave", (e) => {
+    if (e.target === div) div.classList.remove("clasp-drag");
+  });
+  div.addEventListener("drop", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    div.classList.remove("clasp-drag");
+    const files = [...(e.dataTransfer?.files ?? [])];
+    if (files.length) addFiles(files);
   });
 
   return div;
@@ -302,11 +357,143 @@ function submitFloatingDialog() {
   const prompt = input ? input.value.trim() : "";
   const el = currentTarget;
   if (!el) return;
+
+  // Snapshot attachments and clear local state immediately so the next pick
+  // starts with an empty dialog. dataUrls are passed to the sidepanel which
+  // will reconstruct Blobs for the multipart upload.
+  const attachments = attachedFiles.map((a) => ({
+    id: a.id,
+    filename: a.file.name,
+    mimeType: a.file.type,
+    sizeBytes: a.file.size,
+    dataUrl: a.dataUrl,
+  }));
+  clearAttachments();
+
   hideFloatingDialog();
   const data = collectElementData(el);
-  chrome.runtime.sendMessage({ type: "ELEMENT_PICKED", elementData: data, prompt, quickSend: true }).catch(() => {});
+  chrome.runtime
+    .sendMessage({
+      type: "ELEMENT_PICKED",
+      elementData: data,
+      prompt,
+      quickSend: true,
+      attachments,
+    })
+    .catch(() => {});
   // Immediately reactivate so user can pick the next element
   activatePicker();
+}
+
+// ── Attachments ───────────────────────────────────────────────────────────────
+
+function readAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error("read failed"));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function addFiles(rawFiles) {
+  setFloatError("");
+
+  const remaining = ATTACHMENT_MAX_COUNT - attachedFiles.length;
+  if (remaining <= 0) {
+    setFloatError(`Max ${ATTACHMENT_MAX_COUNT} attachments per pick`);
+    return;
+  }
+
+  const reasons = [];
+  if (rawFiles.length > remaining) {
+    reasons.push(`${rawFiles.length - remaining} extra file(s) skipped`);
+  }
+
+  for (const file of rawFiles.slice(0, remaining)) {
+    if (!ATTACHMENT_TYPES.includes(file.type)) {
+      reasons.push(`${file.name}: unsupported type`);
+      continue;
+    }
+    if (file.size > ATTACHMENT_MAX_BYTES) {
+      reasons.push(`${file.name}: too large (max 5 MB)`);
+      continue;
+    }
+    try {
+      const dataUrl = await readAsDataURL(file);
+      attachedFiles.push({
+        id: crypto.randomUUID(),
+        file,
+        dataUrl,
+        isImage: file.type.startsWith("image/"),
+      });
+    } catch {
+      reasons.push(`${file.name}: read failed`);
+    }
+  }
+
+  renderThumbnails();
+  if (reasons.length) setFloatError(reasons.join(" · "));
+}
+
+function removeFile(id) {
+  attachedFiles = attachedFiles.filter((a) => a.id !== id);
+  renderThumbnails();
+}
+
+function clearAttachments() {
+  attachedFiles = [];
+  renderThumbnails();
+  setFloatError("");
+}
+
+function renderThumbnails() {
+  const wrap = document.getElementById("clasp-float-thumbs");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+
+  if (attachedFiles.length === 0) {
+    wrap.style.display = "none";
+    return;
+  }
+  wrap.style.display = "";
+
+  for (const att of attachedFiles) {
+    const tile = document.createElement("div");
+    tile.className = "clasp-thumb";
+
+    if (att.isImage) {
+      const img = document.createElement("img");
+      img.src = att.dataUrl;
+      img.alt = att.file.name;
+      img.className = "clasp-thumb-img";
+      tile.appendChild(img);
+    } else {
+      const chip = document.createElement("div");
+      chip.className = "clasp-thumb-text";
+      chip.textContent = att.file.name;
+      tile.appendChild(chip);
+    }
+
+    const remove = document.createElement("button");
+    remove.className = "clasp-thumb-remove";
+    remove.title = "Remove";
+    remove.textContent = "✕";
+    remove.addEventListener("click", (e) => {
+      e.stopPropagation();
+      removeFile(att.id);
+    });
+    tile.appendChild(remove);
+
+    wrap.appendChild(tile);
+  }
+}
+
+function setFloatError(msg) {
+  const el = document.getElementById("clasp-float-error");
+  if (!el) return;
+  el.textContent = msg || "";
+  el.style.display = msg ? "" : "none";
 }
 
 // ── Picker event handlers ─────────────────────────────────────────────────────
@@ -367,6 +554,7 @@ function deactivatePicker() {
   document.body.style.cursor = "";
   hideHighlight();
   hideFloatingDialog();
+  clearAttachments();
   document.removeEventListener("mouseover", onMouseOver, true);
   document.removeEventListener("click", onPickerClick, true);
   document.removeEventListener("keydown", onPickerEscape, true);
