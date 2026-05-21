@@ -2,7 +2,115 @@
 
 **Date:** 2026-05-21
 **Scope:** 56 source files across `server/`, `extension/`, `website/` + config.
-`npm audit` run on production deps. No fixes applied — read-only review.
+`npm audit` run on production deps.
+
+**Original audit:** read-only review (commit `44d58e9`).
+**Last update:** 2026-05-21 — Round 1 + Round 2A + 2B fixes applied (commit `1633e16`).
+
+---
+
+## ✅ Resolution log
+
+What's been fixed since the audit was first written. Items below are
+struck through in the main report when shipped.
+
+### Round 1 — low-risk hardening + cleanup (commit `bb1516e`)
+
+In one commit:
+
+- **#4 JSON body limit bumped 1 MB → 5 MB.** Pro picks with hi-DPI screenshots
+  were being silently 413'd on bigger displays. Free-tier still has the
+  separate 50 KB guard at `routes/element.js`.
+- **#5 Removed `@vibesignals/observe` from `server/package.json`.** Was a
+  dead dep — only the website actually uses it.
+- **#6 Refreshed `mcp.json`.** Bumped 1.0.1 → 1.1.0; description and tool
+  blurbs now mention attachments and signed URLs; pricing block calls out
+  the 30 picks-with-attachments / month + $5 top-ups.
+- **#8 Production refuses to boot without `DATABASE_URL`.** Without a DB,
+  the auth middleware falls back to "any string is a valid Pro key" — fine
+  for local dev, dangerous on Railway. Now throws on startup if
+  `NODE_ENV=production && !DATABASE_URL`.
+- **#9 SIGTERM/SIGINT graceful shutdown.** Server now drains in-flight
+  requests, closes the PG pool + Redis, and clears the cleanup interval
+  before exiting. 9-second self-kill timer if anything hangs (Railway
+  grace period is ~10 s). Verified locally: clean exit in <100 ms.
+- **#10 Emails dropped from production webhook logs.** Pro-activation,
+  top-up, etc. now log Dodo `customer_id` only. Dev-mode magic-link logs
+  (gated by `!RESEND_API_KEY`) keep the email since they only fire
+  locally.
+
+### Round 2A — patched all transitive deps (commit `022324e`)
+
+- **#2 `npm audit`: 6 vulns (4 moderate + 2 high) → 0 vulns.**
+
+  Why `npm audit fix` was a no-op: lockfile pinned old patches, and the
+  MCP SDK's caret ranges (`^1.19.9`, `^4.11.4`, etc.) allowed newer
+  patched versions but the lockfile resolution had frozen old ones.
+
+  Surgical fix via `package.json` `overrides` field — force the patched
+  version of each vulnerable transitive dep. Doesn't touch the SDK
+  version itself.
+
+  | Package | Old | New | Severity |
+  |---|---|---|---|
+  | `@hono/node-server` | 1.19.11 | 1.19.14 | moderate (CWE-22) |
+  | `hono` | 4.12.5 | 4.12.21 | moderate (×11 advisories) |
+  | `fast-uri` | 3.1.0 | 3.1.2 | high |
+  | `ip-address` | 10.1.0 | 10.2.0 | moderate |
+  | `path-to-regexp` (under express 4) | 0.1.12 | 0.1.13 | high (ReDoS) |
+  | `path-to-regexp` (under router for express 5) | 8.3.0 | 8.4.2 | high (ReDoS) |
+
+  Verified post-upgrade: server boots, MCP `tools/list` returns all 5
+  tools, transport works.
+
+### Round 2B — rate limiting (commit `1633e16`)
+
+- **#3 Rate limiting on every endpoint that does real work.**
+
+  New: `server/lib/ratelimit.js` exposes two factories — `apiKeyLimiter()`
+  (keyed by `req.userId`, falls back to IP if unauthenticated) and
+  `ipLimiter()` (keyed by client IP). Both share a 429 envelope so the
+  client can detect throttling with one check.
+
+  `app.set('trust proxy', 1)` added so the IP limiter sees the real
+  client behind Railway's reverse-proxy hop, not the proxy itself.
+
+  Per-route caps:
+
+  | Endpoint(s) | Bucket | Limit |
+  |---|---|---|
+  | `POST/PATCH/DELETE/GET /element-context*` | per API key | 600/min |
+  | `GET/POST /mcp` (Claude tool calls) | per API key | 1200/min |
+  | `GET /auth/info` | per API key | 60/min |
+  | `GET /auth/verify/:token` | per IP | 30/min |
+  | `GET /auth/poll/:deviceId` | per IP | 60/min |
+  | `GET/POST/DELETE /auth/me, /auth/keys*` | per IP | 60/min |
+  | `POST /billing/checkout`, `/checkout/topup` | per IP | 20/min |
+  | `POST /auth/webhook` | **no limit** | (Dodo retries — limiter would worsen failures) |
+  | `POST /auth/signup` | per IP | 10/h (existing inline limiter, kept) |
+
+  Verified locally: 600 successive `/element-context/quota` calls all
+  return 200; the 601st returns 429. 60 calls to `/auth/poll/<random>`
+  from one IP all 200; the 61st returns 429.
+
+### Items deferred / still open
+
+- **#1 `/auth/poll` returns raw API key + deviceId in URL.** Not yet
+  fixed — needs coordinated server + extension change. Real attack
+  surface; good candidate for next round.
+- **#7 `bp_api_key` storage prefix in extension.** Migration pattern is
+  clear (read-from-old-write-to-new shim) but touches the extension's
+  auth flow. Defer until paired with another extension change.
+- **#11 `/auth/me` returns full API-key prefixes.** Acceptable for now
+  since no UI consumes it. Revisit if a dashboard ever does.
+- All 🟢 cleanup / ops items below — schedule when convenient.
+
+---
+
+## 📋 Original report
+
+Items still applicable are below. Items shipped above are crossed out
+where they appear in the main list.
 
 ---
 
@@ -18,7 +126,7 @@
 **Risk:** medium — exploitable but requires log access.
 **Suggested:** treat deviceId as a secret (don't log it), use `POST /auth/poll` with the deviceId in the body, and consume the record on first successful poll.
 
-### 2. `npm audit` — 6 vulns, all in MCP SDK's transitive tree
+### ~~2. `npm audit` — 6 vulns, all in MCP SDK's transitive tree~~ ✅ FIXED in `022324e`
 4 moderate, 2 high. Everything traces to `@modelcontextprotocol/sdk@1.27.1` pulling in `hono` 4.12.5, `@hono/node-server` 1.19.11, `path-to-regexp`, `ip-address`, `express-rate-limit`. Notable:
 
 - `hono` has 11 advisories (prototype pollution, cookie bypass, path traversal, JSX injection)
@@ -29,7 +137,7 @@ The MCP server *uses* `@modelcontextprotocol/sdk` for the streamable-HTTP transp
 
 **Suggested:** check if a newer SDK has cleaner deps (`npm view @modelcontextprotocol/sdk versions`), or run `npm audit fix` and verify the streamable HTTP transport still works.
 
-### 3. `/auth/poll` and `/element-context/quota` lack rate limiting
+### ~~3. `/auth/poll` and `/element-context/quota` lack rate limiting~~ ✅ FIXED in `1633e16`
 Only `POST /auth/signup` has the per-IP limiter (`server/routes/auth.js:34`). Everything else is wide open:
 
 - `/auth/poll/:deviceId` could be hammered to brute-force device IDs (122 bits → in practice unfeasible, but no defense in depth)
@@ -38,7 +146,7 @@ Only `POST /auth/signup` has the per-IP limiter (`server/routes/auth.js:34`). Ev
 **Risk:** low at current scale, climbs with usage.
 **Suggested:** add a single global `express-rate-limit` (already in deps via SDK) on the API surface, e.g. 200 req/min/key.
 
-### 4. `express.json({ limit: '1mb' })` may silently reject Pro screenshots
+### ~~4. `express.json({ limit: '1mb' })` may silently reject Pro screenshots~~ ✅ FIXED in `bb1516e`
 `server/index.js:44`. A high-DPI screenshot (4K display, dense element) base64-encoded in `pick.context.screenshot` can exceed 1 MB. Result: Pro user gets `413 Payload too large` with no friendly UX. Free users have a separate 50KB guard at `routes/element.js:81`, but Pro relies on the global limit.
 
 **Suggested:** bump Pro limit to 5MB (matches attachment cap) or per-route override. Add a friendlier error message when 413 hits.
@@ -52,10 +160,10 @@ Only `POST /auth/signup` has the per-IP limiter (`server/routes/auth.js:34`). Ev
 
 ## 🟡 Medium-priority items
 
-### 6. `@vibesignals/observe` is a dead dependency in `server/package.json`
+### ~~6. `@vibesignals/observe` is a dead dependency in `server/package.json`~~ ✅ FIXED in `bb1516e`
 `server/package.json:16`. Imported only in `website/src/analytics.js`. Not used anywhere in `server/`. Increases `npm ci` time + container size for nothing.
 
-### 7. `mcp.json` is stale
+### ~~7. `mcp.json` is stale~~ ✅ FIXED in `bb1516e`
 Root-level `mcp.json` declares `"version": "1.0.1"` and an old description that doesn't mention attachments. If `claudecodemarketplace.net` or similar reads it, you're shipping outdated metadata.
 
 ### 8. Inconsistent storage prefix in extension
@@ -64,7 +172,7 @@ Six places use `bp_api_key`, eight places use `clasp_*` keys. `bp_` is legacy ("
 ### 9. VibeSignals public key committed in client bundle
 `website/src/analytics.js:3` — `acgfpGDz5qvPlYyMKhZvxZVYVQZ4KQtupgPMD1ljeY0`. This IS shipped to every visitor's browser by design (it's a write-only telemetry key), but worth confirming with VibeSignals docs that its scope is read-protected. If anyone can READ telemetry with it, that's a leak.
 
-### 10. PII in server logs
+### ~~10. PII in server logs~~ ✅ FIXED in `bb1516e` (production logs only)
 Multiple `console.log` lines include user emails (e.g. `auth.js:519`: `console.log("Pro activated via subscription for ${email}")`). Railway logs are private to you, but for GDPR posture / future log shipping, this becomes a compliance ask. Hashed user IDs or redacted-domain emails would be safer.
 
 ### 11. `/auth/me` returns full API-key list with prefixes
@@ -93,7 +201,7 @@ Possibly stale (29KB is small; current packaged extension may be larger). Genera
 
 ## ⚙️ Operational concerns
 
-### 17. No graceful shutdown
+### ~~17. No graceful shutdown~~ ✅ FIXED in `bb1516e`
 No `SIGTERM`/`SIGINT` handler. Railway sends SIGTERM on restart; clasp-it ignores it and gets SIGKILL'd after grace period. In-flight uploads can be cut. Redis/PG pool connections aren't drained.
 
 ### 18. `decrementAttachmentsUsed` race
@@ -102,7 +210,7 @@ No `SIGTERM`/`SIGINT` handler. Railway sends SIGTERM on restart; clasp-it ignore
 ### 19. R2 cleanup vs DB cleanup ordering note
 `server/lib/cleanup.js`. R2 fails → DB row deleted anyway → orphaned R2 object with no DB pointer. The code comment acknowledges this (`That's an orphan in R2 — acceptable, R2 has no DB FK`). True, but you have no way to find these orphans later if you ever wanted to clean them. Consider tracking failed R2 deletes in a small "to_purge" Redis list.
 
-### 20. Dev mode auth is a foot-gun
+### ~~20. Dev mode auth is a foot-gun~~ ✅ FIXED in `bb1516e`
 `server/lib/auth.js:147` — when `DATABASE_URL` is unset, `requireApiKey` accepts ANY string as a key with full Pro access. Today this only triggers locally without `.env`, so safe. But: a Railway misconfiguration that drops `DATABASE_URL` (hostname rename, DB outage with `db.js` falling back to no-pool) silently turns auth off. The `db.js` startup warns but doesn't fail.
 **Suggested:** in production (`NODE_ENV === 'production'`), refuse to start if `DATABASE_URL` is unset.
 
@@ -130,17 +238,20 @@ For balance — these came up clean:
 
 ## TL;DR ranked
 
-| # | Severity | Item | Effort |
+| # | Severity | Item | Status |
 |---|---|---|---|
-| 1 | 🔴 medium | `/auth/poll` returns raw API key + deviceId in URL | M |
-| 2 | 🔴 medium | 6 npm vulns from MCP SDK transitive deps | S — try `npm audit fix` |
-| 3 | 🟡 low | No rate limit on most endpoints | S — global middleware |
-| 4 | 🟡 low | 1 MB JSON limit may reject Pro screenshots | XS — bump to 5 MB |
-| 5 | 🟢 cleanup | Drop `@vibesignals/observe` from server deps | XS |
-| 6 | 🟢 cleanup | `mcp.json` version bump + attachments mention | XS |
-| 7 | 🟡 cleanup | Standardize on `clasp_*` storage prefix | S |
-| 8 | 🟡 ops | Refuse to boot in production without `DATABASE_URL` | XS |
-| 9 | 🟡 ops | Graceful SIGTERM handler | S |
-| 10 | 🟢 ops | PII (emails) in production logs | S — log user IDs instead |
+| 1 | 🔴 medium | `/auth/poll` returns raw API key + deviceId in URL | ⏳ open |
+| 2 | 🔴 medium | 6 npm vulns from MCP SDK transitive deps | ✅ shipped `022324e` |
+| 3 | 🟡 low | No rate limit on most endpoints | ✅ shipped `1633e16` |
+| 4 | 🟡 low | 1 MB JSON limit may reject Pro screenshots | ✅ shipped `bb1516e` |
+| 5 | 🟢 cleanup | Drop `@vibesignals/observe` from server deps | ✅ shipped `bb1516e` |
+| 6 | 🟢 cleanup | `mcp.json` version bump + attachments mention | ✅ shipped `bb1516e` |
+| 7 | 🟡 cleanup | Standardize on `clasp_*` storage prefix | ⏳ open |
+| 8 | 🟡 ops | Refuse to boot in production without `DATABASE_URL` | ✅ shipped `bb1516e` |
+| 9 | 🟡 ops | Graceful SIGTERM handler | ✅ shipped `bb1516e` |
+| 10 | 🟢 ops | PII (emails) in production logs | ✅ shipped `bb1516e` |
 
-Nothing here is shipped-broken. **#1 and #2** are the only items worth acting on relatively soon. The rest are technical debt — schedule when convenient.
+**8 of 10 ranked items shipped.** Two open: `/auth/poll` redesign (real
+attack-surface fix; deferred because it requires a coordinated extension
+change) and the `bp_api_key` storage prefix migration (cosmetic, deferred
+to pair with another extension change).
