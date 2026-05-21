@@ -15,7 +15,7 @@ import mcpRouter from './routes/mcp.js';
 import authRouter from './routes/auth.js';
 
 import { redis } from './lib/storage.js';
-import { initSchema } from './lib/db.js';
+import { initSchema, pool } from './lib/db.js';
 import { cleanupOldAttachments } from './lib/cleanup.js';
 
 // ─── App setup ────────────────────────────────────────────────────────────────
@@ -41,7 +41,11 @@ app.use((_req, res, next) => {
 // Must be registered BEFORE express.json() — once json() runs, raw bytes are gone.
 app.use('/auth/webhook', express.raw({ type: 'application/json', limit: '1mb' }));
 
-app.use(express.json({ limit: '1mb' }));
+// 5 MB matches the attachment-per-file cap. Pro picks include base64
+// screenshots that on hi-DPI displays can comfortably exceed 1 MB; a
+// generous JSON limit avoids silent 413s. Free-tier picks have a tighter
+// 50 KB guard at routes/element.js (rejects screenshots etc).
+app.use(express.json({ limit: '5mb' }));
 app.use(express.static(join(__dirname, 'public'), { extensions: ['html'] }));
 
 // ─── Health check ─────────────────────────────────────────────────────────────
@@ -80,11 +84,20 @@ app.use((err, _req, res, _next) => {
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
 
+// In production, in-memory fallback would silently disable auth (any string
+// becomes a valid API key — see lib/auth.js requireApiKey). Refuse to start
+// if DATABASE_URL is missing in production. Dev mode keeps the fallback for
+// local hacking without a DB.
+if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
+  console.error('[server] FATAL: DATABASE_URL is required in production — refusing to start');
+  process.exit(1);
+}
+
 // Initialise Postgres schema (idempotent) then start listening.
 // Non-fatal: a schema error should not prevent the server from starting.
 await initSchema().catch(err => console.error('[db] Schema init failed (non-fatal):', err.message));
 
-app.listen(PORT, () => {
+const httpServer = app.listen(PORT, () => {
   console.log(`[server] clasp-it listening on port ${PORT}`);
   console.log(`[server] Storage: ${redis ? 'Redis' : 'in-memory (dev)'}`);
 });
@@ -104,6 +117,45 @@ function runCleanup() {
 
 // 60s grace lets DB connections settle and avoids competing with start-up
 // traffic. After that, run every CLEANUP_INTERVAL_HOURS.
-setTimeout(runCleanup, 60 * 1000);
-setInterval(runCleanup, CLEANUP_INTERVAL_MS);
+const cleanupBootTimer = setTimeout(runCleanup, 60 * 1000);
+const cleanupInterval = setInterval(runCleanup, CLEANUP_INTERVAL_MS);
 console.log(`[cleanup] Scheduled: every ${CLEANUP_INTERVAL_HOURS}h, removing attachments older than ${CLEANUP_OLDER_THAN_DAYS}d`);
+
+// ─── Graceful shutdown ────────────────────────────────────────────────────────
+// Railway sends SIGTERM with a ~10s grace before SIGKILL. Drain in-flight
+// requests, close pools, then exit. Idempotent — the `shuttingDown` flag
+// guards against duplicate signal delivery.
+
+let shuttingDown = false;
+async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[server] Received ${signal} — shutting down gracefully`);
+
+  // Hard cap: if any close hangs, kill the process after 9s so Railway
+  // doesn't have to SIGKILL us.
+  const killTimer = setTimeout(() => {
+    console.error('[server] Shutdown took too long — forcing exit');
+    process.exit(1);
+  }, 9_000);
+  killTimer.unref();
+
+  clearTimeout(cleanupBootTimer);
+  clearInterval(cleanupInterval);
+
+  // Stop accepting new connections; existing requests get to finish.
+  await new Promise((resolve) => httpServer.close(resolve));
+
+  // Close DB + Redis. Both swallow their own errors so one failure doesn't
+  // block the other.
+  await Promise.allSettled([
+    pool ? pool.end() : Promise.resolve(),
+    redis ? redis.quit() : Promise.resolve(),
+  ]);
+
+  console.log('[server] Goodbye');
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

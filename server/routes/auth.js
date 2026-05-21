@@ -522,7 +522,7 @@ router.post('/webhook', async (req, res) => {
            WHERE dodo_customer_id = $1 OR (dodo_customer_id IS NULL AND email = $2)`,
           [customerId, email],
         );
-        console.log(`[auth] Pro activated via subscription for ${email}`);
+        console.log(`[auth] Pro activated via subscription for Dodo customer ${customerId}`);
         break;
       }
 
@@ -536,7 +536,7 @@ router.post('/webhook', async (req, res) => {
             const newTotal = await incrementAttachmentBonus(userId, TOPUP_PICKS_PER_PACK);
             console.log(`[auth] Top-up +${TOPUP_PICKS_PER_PACK} for user ${userId} (new bonus total: ${newTotal})`);
           } else {
-            console.warn(`[auth] Top-up payment received but no user matched (customer=${customerId}, email=${email})`);
+            console.warn(`[auth] Top-up payment received but no user matched (customer=${customerId})`);
           }
           break;
         }
@@ -547,7 +547,7 @@ router.post('/webhook', async (req, res) => {
            WHERE dodo_customer_id = $2 OR (dodo_customer_id IS NULL AND email = $3)`,
           [plan, customerId, email],
         );
-        console.log(`[auth] Pro activated via payment for ${email}`);
+        console.log(`[auth] Pro activated via payment for Dodo customer ${customerId}`);
         break;
       }
 

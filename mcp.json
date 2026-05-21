@@ -1,8 +1,8 @@
 {
   "name": "clasp-it",
   "displayName": "Clasp-it",
-  "description": "Pick any element on any webpage and send its full context (HTML, CSS, React props, console logs, network requests, screenshot) to Claude Code, Cursor, or Windsurf via MCP — in one click.",
-  "version": "1.0.1",
+  "description": "Pick any element on any webpage and send its full context (HTML, CSS, React props, console logs, network requests, screenshot, plus image and text attachments) to Claude Code, Cursor, or Windsurf via MCP — in one click.",
+  "version": "1.1.0",
   "icon": "https://claspit.dev/icon.png",
   "homepage": "https://claspit.dev",
   "repository": "https://github.com/cyphermadhan/clasp-it",
@@ -49,19 +49,19 @@
   "tools": [
     {
       "name": "get_element_context",
-      "description": "Get the most recently picked element context (HTML, CSS, React props, console logs, network requests, screenshot). Auto-marks the pick as in_progress."
+      "description": "Get the most recently picked element context (HTML, CSS, React props, console logs, network requests, screenshot). Includes any user-attached images or text files via 1-hour signed URLs. Auto-marks the pick as in_progress."
     },
     {
       "name": "get_element_context_by_id",
-      "description": "Get a specific pick by its ID."
+      "description": "Get a specific pick by its ID, including its attachments."
     },
     {
       "name": "list_recent_picks",
-      "description": "List the last N element picks with their status (not_started, in_progress, completed)."
+      "description": "List the last N element picks with their status (not_started, in_progress, completed) and attachments."
     },
     {
       "name": "update_pick_status",
-      "description": "Mark a pick as not_started, in_progress, or completed."
+      "description": "Mark a pick as not_started, in_progress, or completed. Marking completed async-deletes the pick's attachment files."
     },
     {
       "name": "clear_context",
@@ -74,7 +74,7 @@
     },
     "pro": {
       "price": "$2.99/month or $24/year",
-      "description": "Unlimited picks + screenshot, console logs, network requests, React props"
+      "description": "Unlimited picks + screenshot, console logs, network requests, React props, and 30 picks-with-attachments per month (5 MB per file). $5 top-ups for +25 more."
     }
   }
 }
