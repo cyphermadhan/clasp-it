@@ -118,6 +118,22 @@ In one commit:
   return 200; the 601st returns 429. 60 calls to `/auth/poll/<random>`
   from one IP all 200; the 61st returns 429.
 
+### Round 2E — extension cleanup (commit pending)
+
+- **#8 storage-prefix migration:** `bp_api_key` (legacy "Browser Pick"
+  era) → `clasp_api_key`. Read-from-both-write-to-new shim in `init()`.
+  First load after upgrade: read either name, prefer the new one,
+  rewrite the legacy value to the new key, remove the old key. After
+  migration: only `clasp_api_key` exists in chrome.storage. Sign-out
+  clears both names defensively in case a user signs out before
+  init() ran.
+- **#12 + #13 panel.html removed:** legacy placeholder file deleted.
+  Manifest's `web_accessible_resources` no longer references it.
+  `sidepanel.html` is the actual UI; `panel.html` was just there
+  because the manifest mentioned it.
+- CLAUDE.md repo-structure section updated to drop the panel.html
+  line.
+
 ### Round 2D — second-pass security review (in progress)
 
 A deeper look at attack surfaces beyond the original audit. Numbering
@@ -267,7 +283,7 @@ Only `POST /auth/signup` has the per-IP limiter (`server/routes/auth.js:34`). Ev
 ### ~~7. `mcp.json` is stale~~ ✅ FIXED in `bb1516e`
 Root-level `mcp.json` declares `"version": "1.0.1"` and an old description that doesn't mention attachments. If `claudecodemarketplace.net` or similar reads it, you're shipping outdated metadata.
 
-### 8. Inconsistent storage prefix in extension
+### ~~8. Inconsistent storage prefix in extension~~ ✅ FIXED — see Round 2E
 Six places use `bp_api_key`, eight places use `clasp_*` keys. `bp_` is legacy ("Browser Pick" naming). Functional today, but a future bug magnet.
 
 ### 9. VibeSignals public key committed in client bundle
@@ -283,10 +299,10 @@ Multiple `console.log` lines include user emails (e.g. `auth.js:519`: `console.l
 
 ## 🟢 Stale / unused code
 
-### 12. `extension/panel.html` is a placeholder
+### ~~12. `extension/panel.html` is a placeholder~~ ✅ DELETED — see Round 2E
 Comment says it exists "only so the manifest's `web_accessible_resources` declaration is satisfied". Could likely be dropped from the manifest and the file deleted.
 
-### 13. `extension/manifest.json` web_accessible_resources lists `panel.html`
+### ~~13. `extension/manifest.json` web_accessible_resources lists `panel.html`~~ ✅ FIXED — see Round 2E
 Same as above — only there because the file is.
 
 ### 14. `server/public/blog/` is functionally orphaned in docs

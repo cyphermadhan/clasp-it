@@ -12,8 +12,7 @@ clasp/
 │   ├── content.js          Element picker overlay + floating prompt dialog
 │   ├── styles.css          Picker overlay + floating dialog styles
 │   ├── sidepanel.html      Chrome side panel UI  ✅ COMPLETE
-│   ├── sidepanel.js        Side panel logic       ✅ COMPLETE
-│   └── panel.html          Legacy placeholder (kept for web_accessible_resources)
+│   └── sidepanel.js        Side panel logic       ✅ COMPLETE
 ├── website/          Vite + React website (builds → server/public/)
 │   ├── index.html          Landing page entry
 │   ├── verified.html       Verified page entry

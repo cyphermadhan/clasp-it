@@ -83,9 +83,21 @@ const EDIT_TYPES = [
 // ── Init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
-  const stored = await storageGet(["bp_api_key", "clasp_email", "clasp_plan", "clasp_history", "clasp_device_id", "clasp_limit_date"]);
-  if (stored.bp_api_key) {
-    app.apiKey     = stored.bp_api_key;
+  const stored = await storageGet(["clasp_api_key", "bp_api_key", "clasp_email", "clasp_plan", "clasp_history", "clasp_device_id", "clasp_limit_date"]);
+
+  // Storage-key migration: legacy installs used "bp_api_key" (Browser Pick
+  // era). New code writes to "clasp_api_key". Read both during the rollover
+  // window — prefer new, fall back to old, and migrate transparently the
+  // first time we see the legacy value. Removing the old key after rewrite
+  // means future loads only ever see the new one.
+  const apiKey = stored.clasp_api_key || stored.bp_api_key || null;
+  if (apiKey && stored.bp_api_key && !stored.clasp_api_key) {
+    await storageSet({ clasp_api_key: apiKey });
+    await storageRemove(["bp_api_key"]);
+  }
+
+  if (apiKey) {
+    app.apiKey     = apiKey;
     app.email      = stored.clasp_email  || null;
     app.plan       = stored.clasp_plan   || "free";
     app.history    = stored.clasp_history || [];
@@ -164,7 +176,7 @@ async function saveKey() {
   if (!key) { input.focus(); return; }
 
   app.apiKey = key;
-  await storageSet({ bp_api_key: key });
+  await storageSet({ clasp_api_key: key });
   applyPlanGating();
   initToggleListeners();
   await loadToggleValues();
@@ -202,7 +214,7 @@ async function pollDevice() {
       app.apiKey = data.apiKey;
       app.plan   = data.plan || "free";
       await storageRemove(["clasp_device_id"]);
-      await storageSet({ bp_api_key: data.apiKey, clasp_email: app.email, clasp_plan: app.plan });
+      await storageSet({ clasp_api_key: data.apiKey, clasp_email: app.email, clasp_plan: app.plan });
       applyPlanGating();
       initToggleListeners();
       await loadToggleValues();
@@ -990,7 +1002,11 @@ document.getElementById("sp-limit-refresh").addEventListener("click", async (e) 
 document.getElementById("sp-signout-btn").addEventListener("click", async () => {
   stopDevicePoll();
   stopStatusPolling();
-  await storageRemove(["bp_api_key", "clasp_email", "clasp_plan", "clasp_history"]);
+  // Sign-out: clear both old and new key names defensively, plus all
+  // user-scoped state. bp_api_key is retained in this list during the
+  // migration window so any user who hits sign-out before init() had a
+  // chance to migrate still gets a clean slate.
+  await storageRemove(["clasp_api_key", "bp_api_key", "clasp_email", "clasp_plan", "clasp_history"]);
   Object.assign(app, { apiKey: null, email: null, plan: "free", history: [], deviceId: null, toggleListenersAdded: false });
   showScreen("auth");
 });

@@ -59,7 +59,7 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["panel.html", "sidepanel.html"],
+      "resources": ["sidepanel.html"],
       "matches": ["<all_urls>"]
     }
   ]
