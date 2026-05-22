@@ -85,6 +85,15 @@ export function generateApiKey() {
 }
 
 // ─── Session helpers ──────────────────────────────────────────────────────────
+//
+// Session tokens (returned by /auth/verify in dev mode and used by the
+// session-protected /auth/me, /auth/keys, /billing/portal endpoints) are
+// stored hashed-at-rest. Anyone with Redis read access (us in break-glass,
+// Upstash support, an Upstash compromise) sees only hashes, not the
+// plaintext tokens that would let them impersonate users.
+//
+// The token is a UUIDv4 (122 bits of entropy). The plaintext goes to the
+// client once; only the SHA-256 lives server-side.
 
 const SESSION_TTL = 7 * 24 * 60 * 60; // 7 days in seconds
 
@@ -92,16 +101,18 @@ const SESSION_TTL = 7 * 24 * 60 * 60; // 7 days in seconds
 const sessionStore = new Map();
 
 /**
- * Create a dashboard session token for a userId. Stores in Redis (or memory).
+ * Create a dashboard session token for a userId. Returns the raw token
+ * (caller hands it to the user once — we never see it again on disk).
  * @param {string} userId
  * @returns {Promise<string>} session token
  */
 export async function createSession(userId) {
   const token = uuidv4();
+  const tokenHash = hashKey(token);
   if (redis) {
-    await redis.set(`session:${token}`, userId, 'EX', SESSION_TTL);
+    await redis.set(`session:${tokenHash}`, userId, 'EX', SESSION_TTL);
   } else {
-    sessionStore.set(token, { userId, expires: Date.now() + SESSION_TTL * 1000 });
+    sessionStore.set(tokenHash, { userId, expires: Date.now() + SESSION_TTL * 1000 });
   }
   return token;
 }
@@ -113,13 +124,14 @@ export async function createSession(userId) {
  */
 export async function resolveSession(token) {
   if (!token) return null;
+  const tokenHash = hashKey(token);
   if (redis) {
-    return await redis.get(`session:${token}`);
+    return await redis.get(`session:${tokenHash}`);
   }
-  const entry = sessionStore.get(token);
+  const entry = sessionStore.get(tokenHash);
   if (!entry) return null;
   if (Date.now() > entry.expires) {
-    sessionStore.delete(token);
+    sessionStore.delete(tokenHash);
     return null;
   }
   return entry.userId;

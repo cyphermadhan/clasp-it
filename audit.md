@@ -118,8 +118,9 @@ In one commit:
   return 200; the 601st returns 429. 60 calls to `/auth/poll/<random>`
   from one IP all 200; the 61st returns 429.
 
-### Round 2E — extension cleanup (commit pending)
+### Round 2E — final cleanup pass (extension + server)
 
+Extension (commit `ea883fd`):
 - **#8 storage-prefix migration:** `bp_api_key` (legacy "Browser Pick"
   era) → `clasp_api_key`. Read-from-both-write-to-new shim in `init()`.
   First load after upgrade: read either name, prefer the new one,
@@ -133,6 +134,15 @@ In one commit:
   because the manifest mentioned it.
 - CLAUDE.md repo-structure section updated to drop the panel.html
   line.
+
+Server (commit pending):
+- **#24 session tokens hashed at rest.** `createSession` SHA-256s the
+  UUIDv4 before writing to Redis (or in-memory fallback);
+  `resolveSession` hashes the incoming token and looks up by hash.
+  Any Redis reader now sees hashes only. Existing sessions
+  invalidated by the cutover (old plaintext keys orphaned; TTL out
+  in ≤7 days). Zero client impact since no active surface uses
+  sessions today.
 
 ### Round 2D — second-pass security review (in progress)
 
@@ -192,15 +202,15 @@ continues from the original list.
     - Different emails have independent buckets
     - Empty input is a no-op (doesn't crash on bad input)
 
-- **#24 🟢 Session tokens stored as plaintext in Redis**
-  `lib/auth.js:69`. Threat model is "Redis read access compromised",
-  which already implies broader breach. Defense-in-depth: hash tokens
-  on write, compare hash on read. Currently no client surface uses
-  sessions actively (extension uses API keys; no dashboard exists)
-  so even invalidating existing sessions would be invisible.
-  Fix: ~5 lines, transparent.
-  Status: deferred — no clients to break, but also no clients to
-  protect. Revisit when a dashboard is built.
+- **~~#24 🟢 Session tokens stored as plaintext in Redis~~** ✅ FIXED in `lib/auth.js#createSession + resolveSession`.
+  SHA-256 hash on write, compare hash on read. Token is still a
+  UUIDv4 returned to the client; the server only ever stores the
+  hash. Anyone reading the Redis dump now sees hashes, not tokens.
+  Existing sessions in Redis are invalidated by the cutover (the
+  old plaintext keys are orphaned, TTL out in ≤7 days). Zero client
+  impact: no active surface uses sessions today.
+  Verified locally: round-trip works (createSession → resolveSession
+  → userId); garbage / null / empty inputs return null.
 
 - **#25 🟢 R2 signed-URL TTL of 1 hour is generous**
   `routes/mcp.js:35`. If a Claude transcript leaks the URL, anyone
