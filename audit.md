@@ -225,13 +225,13 @@ continues from the original list.
   Verified locally: round-trip works (createSession → resolveSession
   → userId); garbage / null / empty inputs return null.
 
-- **#25 🟢 R2 signed-URL TTL of 1 hour is generous**
-  `routes/mcp.js:35`. If a Claude transcript leaks the URL, anyone
-  with the URL can fetch the attachment for the next hour. The
-  attachment is the user's own upload, so the only person hurt is
-  the user themselves.
-  Status: leave at 1h. Could lower to 5min if AI fetch latency
-  permits, but 1h is the safer default for AI usability.
+- **#25 🟢 R2 signed-URL TTL of 1 hour is generous** — ✅ ACCEPTED
+  Users aren't expected to upload anything sensitive — picks-with-
+  attachments are dev-context (UI screenshots, design mocks, log
+  excerpts), not PII or secrets. Even if a transcript leaks the URL,
+  the only thing exposed is the user's own dev artefact, and only
+  for 1 hour. Keeping the 1h TTL for AI fetch reliability.
+  Status: closed.
 
 ### Items deferred / still open
 
@@ -291,7 +291,13 @@ Only `POST /auth/signup` has the per-IP limiter (`server/routes/auth.js:34`). Ev
 
 **Suggested:** bump Pro limit to 5MB (matches attachment cap) or per-route override. Add a friendlier error message when 413 hits.
 
-### 5. Rate limiter is in-memory and per-instance
+### 5. Rate limiter is in-memory and per-instance — 📌 NOTED FOR FUTURE
+**Decision:** acknowledged, not a blocker today. Currently single
+Railway instance, so the in-memory limiter is consistent. **If/when
+we scale horizontally**, switch the `signupRateLimit` Map and the
+`express-rate-limit` MemoryStore to Redis-backed equivalents
+(`rate-limit-redis` + the existing `redis` client). Add a checklist
+item in pre-scale plan.
 `server/routes/auth.js:32` — `signupRateLimit = new Map()`. Single Railway instance today → OK. If you ever scale horizontally, the limit becomes "10 signups/h × N instances" and is trivially bypassed by load-balanced retries. Also: entries with stale `resetAt` are never cleaned, so the Map grows without bound (mild leak — bounded by unique IPs).
 
 **Suggested:** when you scale: use Redis-backed counters for signup rate limit. Add periodic cleanup of stale entries.
@@ -328,7 +334,13 @@ Comment says it exists "only so the manifest's `web_accessible_resources` declar
 ### ~~13. `extension/manifest.json` web_accessible_resources lists `panel.html`~~ ✅ FIXED — see Round 2E
 Same as above — only there because the file is.
 
-### 14. `server/public/blog/` is functionally orphaned in docs
+### 14. `server/public/blog/` is functionally orphaned in docs — 📌 SCHEDULED
+**Decision:** keep the blog (it's intentional SEO + AEO surface
+area), and migrate the standalone HTML files into the Vite source
+pipeline so they share styling + nav with the rest of the site.
+Add new blog posts covering the recent updates (attachments,
+edit-pick, top-ups, multi-device key flow, the visible FAQ).
+Tracked as a separate work item.
 6 blog HTML files served by `express.static`. CLAUDE.md doesn't mention them, the website footer does link to `/blog`. Worth deciding: either bring blog into the build pipeline (Vite source) or document why they're standalone HTML.
 
 ### ~~15. `server/public/downloads/` has `clasp-it-extension.zip` (29KB)~~ ✅ REMOVED — see Round 2E
@@ -344,10 +356,19 @@ Removed alongside `clasp-it-setup.md`. The whole `downloads/` directory is gone,
 ### ~~17. No graceful shutdown~~ ✅ FIXED in `bb1516e`
 No `SIGTERM`/`SIGINT` handler. Railway sends SIGTERM on restart; clasp-it ignores it and gets SIGKILL'd after grace period. In-flight uploads can be cut. Redis/PG pool connections aren't drained.
 
-### 18. `decrementAttachmentsUsed` race
+### 18. `decrementAttachmentsUsed` race — ✅ ACCEPTED (clamp covers it)
+**Decision:** mitigated by the existing `Math.max(0, …)` clamp inside
+`decrementAttachmentsUsed`. Worst case = counter stays at 0 instead
+of going negative. No harm to the user (their counter is correct or
+generous), no harm to us (no over-quota gets granted). Closing.
 `server/routes/element.js:362`. The check "is this the last attachment" reads `updated.attachments.length` after the LSET. Two parallel DELETEs for the last two attachments could both see length=0 and both decrement, taking the counter to -1. **Saved by the clamp in `decrementAttachmentsUsed` itself**, but if you ever remove the clamp, this would explode.
 
-### 19. R2 cleanup vs DB cleanup ordering note
+### 19. R2 cleanup vs DB cleanup ordering note — 📌 SCHEDULED
+**Decision:** track failed R2 deletes in a Redis "to_purge" list so
+the daily sweeper can retry them. Bounded blast radius today (a
+few KB of orphans per failed delete batch), but worth fixing
+properly so we don't accumulate unreachable R2 objects over time.
+Tracked as a separate work item.
 `server/lib/cleanup.js`. R2 fails → DB row deleted anyway → orphaned R2 object with no DB pointer. The code comment acknowledges this (`That's an orphan in R2 — acceptable, R2 has no DB FK`). True, but you have no way to find these orphans later if you ever wanted to clean them. Consider tracking failed R2 deletes in a small "to_purge" Redis list.
 
 ### ~~20. Dev mode auth is a foot-gun~~ ✅ FIXED in `bb1516e`
@@ -391,6 +412,16 @@ For balance — these came up clean:
 | 9 | 🟡 ops | Graceful SIGTERM handler | ✅ shipped `bb1516e` |
 | 10 | 🟢 ops | PII (emails) in production logs | ✅ shipped `bb1516e` |
 
-**9 of 10 ranked items shipped.** One open: the `bp_api_key` storage
-prefix migration (cosmetic, deferred to pair with another extension
-change).
+**10 of 10 ranked items closed** (shipped or accepted).
+
+Across the full 25-item audit (original + Round 2D second-pass review):
+
+| Status | Count | Notes |
+|---|---|---|
+| ✅ Shipped | 18 | All security-critical work + most cleanup |
+| ✅ Accepted (no action) | 3 | #18 race (clamped), #25 R2 TTL (no sensitive uploads), #11 `/auth/me` (no UI consumes it) |
+| 📌 Scheduled (separate work) | 2 | #14 blog migration, #19 R2 orphan tracking |
+| 📌 Noted for future | 2 | #5 horizontal-scale rate limit, #16 cosmetic setTimeout |
+
+Nothing exploitable today is left open. The two scheduled items
+are tracked outside the audit as feature work / hardening passes.
