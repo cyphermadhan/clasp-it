@@ -49,6 +49,7 @@ let speechRecognizer = null;       // active SpeechRecognition instance, or null
 let speechBaseText = '';           // textarea content at the moment recording started
 let speechIsRecording = false;
 
+
 // ── Console interception (forwards to background for buffering) ───────────────
 (function interceptConsole() {
   const levels = ["log", "warn", "error", "info", "debug"];
@@ -254,13 +255,7 @@ function createFloatingDialog() {
       <div id="clasp-float-thumbs"></div>
       <div id="clasp-float-error"></div>
       <div id="clasp-float-row-actions">
-        <button id="clasp-float-attach" title="Attach files (3 max, 5 MB each)">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M11.7188 7.05L7.0625 11.7C5.69 13.0719 3.45 13.0719 2.0781 11.7C0.706253 10.3281 0.706253 8.0875 2.0781 6.7156L7.5781 1.2156C8.4906 0.30312 9.9719 0.30312 10.8844 1.2156C11.7969 2.1281 11.7969 3.6094 10.8844 4.5219L5.5781 9.8281C5.121 10.2854 4.379 10.2854 3.9219 9.8281C3.4646 9.371 3.4646 8.629 3.9219 8.1719L8.6094 3.4844" stroke="#73726c" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
-        <input type="file" id="clasp-float-file-input" multiple accept="${ATTACHMENT_TYPES.join(",")}" style="display:none" />
-        <button id="clasp-float-mic" title="Dictate prompt" style="display:none">
+        <button id="clasp-float-mic" title="Dictate prompt">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#73726c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
             <rect x="9" y="2" width="6" height="12" rx="3" ry="3"/>
             <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
@@ -268,11 +263,19 @@ function createFloatingDialog() {
             <line x1="8" y1="23" x2="16" y2="23"/>
           </svg>
         </button>
-        <button id="clasp-float-submit" title="Send">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M13.0306 7.53062C12.9609 7.60054 12.8781 7.65602 12.787 7.69387C12.6958 7.73173 12.5981 7.75121 12.4993 7.75121C12.4006 7.75121 12.3029 7.73173 12.2117 7.69387C12.1206 7.65602 12.0378 7.60054 11.9681 7.53062L8.74997 4.31249V13.5C8.74997 13.6989 8.67095 13.8897 8.5303 14.0303C8.38965 14.171 8.19889 14.25 7.99997 14.25C7.80106 14.25 7.61029 14.171 7.46964 14.0303C7.32899 13.8897 7.24997 13.6989 7.24997 13.5L7.24997 4.31249L4.0306 7.53062C3.8897 7.67152 3.69861 7.75067 3.49935 7.75067C3.30009 7.75067 3.10899 7.67152 2.9681 7.53062C2.8272 7.38972 2.74805 7.19863 2.74805 6.99937C2.74805 6.80011 2.8272 6.60902 2.9681 6.46812L7.4681 1.96812C7.53778 1.8982 7.62057 1.84272 7.71173 1.80487C7.8029 1.76701 7.90064 1.74753 7.99935 1.74753C8.09806 1.74753 8.1958 1.76701 8.28696 1.80487C8.37813 1.84272 8.46092 1.8982 8.5306 1.96812L13.0306 6.46812C13.1005 6.5378 13.156 6.62059 13.1938 6.71176C13.2317 6.80292 13.2512 6.90066 13.2512 6.99937C13.2512 7.09808 13.2317 7.19582 13.1938 7.28698C13.156 7.37815 13.1005 7.46094 13.0306 7.53062Z" fill="white"/>
-          </svg>
-        </button>
+        <div id="clasp-float-actions-right">
+          <button id="clasp-float-attach" title="Attach files (3 max, 5 MB each)">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M11.7188 7.05L7.0625 11.7C5.69 13.0719 3.45 13.0719 2.0781 11.7C0.706253 10.3281 0.706253 8.0875 2.0781 6.7156L7.5781 1.2156C8.4906 0.30312 9.9719 0.30312 10.8844 1.2156C11.7969 2.1281 11.7969 3.6094 10.8844 4.5219L5.5781 9.8281C5.121 10.2854 4.379 10.2854 3.9219 9.8281C3.4646 9.371 3.4646 8.629 3.9219 8.1719L8.6094 3.4844" stroke="#73726c" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <input type="file" id="clasp-float-file-input" multiple accept="${ATTACHMENT_TYPES.join(",")}" style="display:none" />
+          <button id="clasp-float-submit" title="Send">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M13.0306 7.53062C12.9609 7.60054 12.8781 7.65602 12.787 7.69387C12.6958 7.73173 12.5981 7.75121 12.4993 7.75121C12.4006 7.75121 12.3029 7.73173 12.2117 7.69387C12.1206 7.65602 12.0378 7.60054 11.9681 7.53062L8.74997 4.31249V13.5C8.74997 13.6989 8.67095 13.8897 8.5303 14.0303C8.38965 14.171 8.19889 14.25 7.99997 14.25C7.80106 14.25 7.61029 14.171 7.46964 14.0303C7.32899 13.8897 7.24997 13.6989 7.24997 13.5L7.24997 4.31249L4.0306 7.53062C3.8897 7.67152 3.69861 7.75067 3.49935 7.75067C3.30009 7.75067 3.10899 7.67152 2.9681 7.53062C2.8272 7.38972 2.74805 7.19863 2.74805 6.99937C2.74805 6.80011 2.8272 6.60902 2.9681 6.46812L7.4681 1.96812C7.53778 1.8982 7.62057 1.84272 7.71173 1.80487C7.8029 1.76701 7.90064 1.74753 7.99935 1.74753C8.09806 1.74753 8.1958 1.76701 8.28696 1.80487C8.37813 1.84272 8.46092 1.8982 8.5306 1.96812L13.0306 6.46812C13.1005 6.5378 13.156 6.62059 13.1938 6.71176C13.2317 6.80292 13.2512 6.90066 13.2512 6.99937C13.2512 7.09808 13.2317 7.19582 13.1938 7.28698C13.156 7.37815 13.1005 7.46094 13.0306 7.53062Z" fill="white"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   `;
@@ -319,6 +322,7 @@ function createFloatingDialog() {
     e.stopPropagation();
     toggleSpeechRecognition();
   });
+
   fileInput.addEventListener("change", (e) => {
     addFiles([...e.target.files]);
     e.target.value = ""; // allow picking the same file again
@@ -528,26 +532,17 @@ function setFloatError(msg) {
   el.style.display = msg ? "" : "none";
 }
 
-// ── Speech recognition (Web Speech API) ──────────────────────────────────────
+// ── Speech recognition (Web Speech API) + real audio visualisation ───────────
 
-/**
- * Show the mic button if the browser supports speech recognition. Called
- * once when the floating dialog is created.
- */
+const MIC_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#73726c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><rect x="9" y="2" width="6" height="12" rx="3" ry="3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`;
+const STOP_SVG = `<svg width="14" height="14" viewBox="0 0 14 14" fill="#dc2626" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="12" height="12" rx="2" ry="2"/></svg>`;
+
 function maybeShowMicButton() {
-  if (!SpeechRecognitionImpl) return; // unsupported → leave mic hidden
+  if (!SpeechRecognitionImpl) return;
   const mic = document.getElementById("clasp-float-mic");
-  // CSS doesn't define a display rule for the mic — inline value wins.
-  // Setting flex here lets the row-actions flex layout treat it normally.
-  if (mic) mic.style.display = "flex";
+  if (mic) mic.classList.add("clasp-mic-supported");
 }
 
-/**
- * Toggle recording state. Tap once → start, tap again → stop. The recognizer
- * also auto-stops after a pause (continuous = false). On stop, whatever was
- * captured is final and visible in the textarea — user can edit before
- * sending.
- */
 function toggleSpeechRecognition() {
   if (!SpeechRecognitionImpl) return;
   if (speechIsRecording) {
@@ -569,13 +564,10 @@ function startSpeechRecognition() {
   }
 
   const rec = new SpeechRecognitionImpl();
-  rec.continuous = false;       // auto-stop on natural pause
-  rec.interimResults = true;    // live preview while speaking
+  rec.continuous = true;
+  rec.interimResults = true;
   rec.lang = navigator.language || "en-US";
 
-  // Snapshot current text so we don't blow away anything the user typed.
-  // Final transcripts append to this base; interim results show live but
-  // don't commit until the recognizer fires `isFinal: true`.
   speechBaseText = input.value;
 
   rec.onresult = (event) => {
@@ -587,10 +579,8 @@ function startSpeechRecognition() {
       else interim += t;
     }
     if (final) {
-      // Commit final results to base text + a leading space if needed
       speechBaseText = (speechBaseText.trimEnd() + " " + final.trim()).trim();
     }
-    // Render base + live interim (interim not yet committed)
     input.value = interim
       ? (speechBaseText.trimEnd() + " " + interim.trim()).trim()
       : speechBaseText;
@@ -599,22 +589,28 @@ function startSpeechRecognition() {
   rec.onerror = (event) => {
     if (event.error === "not-allowed" || event.error === "service-not-allowed") {
       setFloatError("Microphone access denied — check your browser permissions");
+      stopSpeechRecognition();
     } else if (event.error === "no-speech") {
-      // Common, harmless — recognizer heard nothing. Don't show an error.
+      // Harmless — recognizer heard silence
     } else if (event.error === "audio-capture") {
       setFloatError("No microphone found");
-    } else {
+      stopSpeechRecognition();
+    } else if (event.error !== "aborted") {
       setFloatError(`Speech error: ${event.error}`);
     }
   };
 
   rec.onend = () => {
-    speechIsRecording = false;
-    speechRecognizer = null;
-    mic.classList.remove("recording");
-    mic.title = "Dictate prompt";
-    // Final commit — drop any uncommitted interim from the textarea
-    if (input.value !== speechBaseText) input.value = speechBaseText;
+    // Auto-restart if user hasn't explicitly stopped (Chrome ~60s ceiling)
+    if (speechIsRecording) {
+      try {
+        rec.start();
+      } catch {
+        finishRecordingUI();
+      }
+      return;
+    }
+    finishRecordingUI();
   };
 
   try {
@@ -622,9 +618,10 @@ function startSpeechRecognition() {
     speechRecognizer = rec;
     speechIsRecording = true;
     mic.classList.add("recording");
+    mic.innerHTML = STOP_SVG;
     mic.title = "Stop recording";
     setFloatError("");
-  } catch (err) {
+  } catch {
     setFloatError("Couldn't start microphone");
     speechIsRecording = false;
     speechRecognizer = null;
@@ -632,13 +629,25 @@ function startSpeechRecognition() {
 }
 
 function stopSpeechRecognition() {
-  if (!speechRecognizer) return;
-  try {
-    speechRecognizer.stop();
-  } catch {
-    // Already stopped — onend will clear state
+  speechIsRecording = false;
+  if (speechRecognizer) {
+    try { speechRecognizer.stop(); } catch {}
   }
+  finishRecordingUI();
 }
+
+function finishRecordingUI() {
+  const mic = document.getElementById("clasp-float-mic");
+  const input = document.getElementById("clasp-float-input");
+  if (mic) {
+    mic.classList.remove("recording");
+    mic.innerHTML = MIC_SVG;
+    mic.title = "Dictate prompt";
+  }
+  speechRecognizer = null;
+  if (input && input.value !== speechBaseText) input.value = speechBaseText;
+}
+
 
 // ── Picker event handlers ─────────────────────────────────────────────────────
 
@@ -699,7 +708,6 @@ function deactivatePicker() {
   hideHighlight();
   hideFloatingDialog();
   clearAttachments();
-  // Don't leave a recognizer running after the dialog closes
   if (speechIsRecording) stopSpeechRecognition();
   document.removeEventListener("mouseover", onMouseOver, true);
   document.removeEventListener("click", onPickerClick, true);

@@ -206,10 +206,17 @@
   all: initial !important;
   display: flex !important;
   align-items: center !important;
-  justify-content: flex-end !important;
   gap: 6px !important;
   padding: 0 10px 10px 10px !important;
   box-sizing: border-box !important;
+}
+
+#clasp-float-actions-right {
+  all: initial !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  margin-left: auto !important;
 }
 
 #clasp-float-attach {
@@ -242,11 +249,11 @@
   display: none !important;
 }
 
-/* Mic button — hidden by default via inline style on the HTML element.
- * JS sets `style.display = "flex"` when SpeechRecognition is supported.
- * No display rule here so the inline value wins. */
+/* Mic / stop button — hidden by default. JS adds .clasp-mic-supported
+ * when SpeechRecognition is available to show it as flex. */
 #clasp-float-mic {
   all: initial !important;
+  display: none !important;
   align-items: center !important;
   justify-content: center !important;
   width: 32px !important;
@@ -262,6 +269,10 @@
   transition: background 0.15s !important;
 }
 
+#clasp-float-mic.clasp-mic-supported {
+  display: flex !important;
+}
+
 #clasp-float-mic:hover {
   background: rgba(0, 0, 0, 0.06) !important;
 }
@@ -271,20 +282,20 @@
   flex-shrink: 0 !important;
 }
 
-/* Recording state — red pulsing tint */
+/* Recording state — red background for stop button */
 #clasp-float-mic.recording {
   background: rgba(220, 38, 38, 0.12) !important;
-  animation: clasp-mic-pulse 1.4s ease-in-out infinite !important;
+}
+
+#clasp-float-mic.recording:hover {
+  background: rgba(220, 38, 38, 0.2) !important;
 }
 
 #clasp-float-mic.recording svg {
-  stroke: #dc2626 !important;
+  stroke: none !important;
+  fill: #dc2626 !important;
 }
 
-@keyframes clasp-mic-pulse {
-  0%, 100% { background: rgba(220, 38, 38, 0.12) !important; }
-  50%      { background: rgba(220, 38, 38, 0.22) !important; }
-}
 
 #clasp-float-submit {
   all: initial !important;
