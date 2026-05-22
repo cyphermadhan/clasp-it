@@ -437,6 +437,92 @@ claude mcp add --scope user --transport http clasp-it \
 
 ---
 
+## Next Features — Voice + Image Search
+
+Two complementary inputs to the floating pick dialog. Voice ships first
+(zero infra cost). Image search ships in phases — start with a free
+Pinterest deep-link, evolve to vision-AI-powered inline search if usage
+validates the demand.
+
+### A. Voice → text (zero-infra, ship first)
+
+User taps a mic button in the floating dialog → speaks → transcript
+fills the textarea live → tap again to stop or auto-stop on silence.
+
+**Implementation:** Web Speech API (`SpeechRecognition`) — Chrome's
+built-in. Audio routes through the browser-vendor's speech service
+(Google for Chrome / Chromium); we never see audio or API keys.
+Hidden if `SpeechRecognition` isn't available (Firefox, etc).
+
+**Files touched:** `extension/content.js` (mic button + handler),
+`extension/styles.css` (mic states).
+
+**Cost:** $0/month. **Effort:** ~1.5 hours.
+
+### B. Image search for design alternatives — phased
+
+User picks an element → clicks "Find design alternatives" → sees a
+gallery of inspiration → picks 1-2 → auto-attached to the pick.
+
+#### Phase B1 — Pinterest deep-link (ship alongside voice)
+
+- Detect element type heuristically (`button.pricing-cta` → "pricing
+  button", `nav` → "navigation", `[class*=card]` → "card design")
+- Open `pinterest.com/search?q=<element-type>+ui+design` in a new tab
+- User screenshots manually as before, but the SEARCH step is free
+- **Cost:** $0/month
+- **Effort:** ~1 hour
+- **Tier:** available to everyone (Pro/Free); no quota
+
+#### Phase B2 — AI vision + image search API (next round)
+
+- Take screenshot of picked element → send to a vision model
+  (Gemini Flash chosen for cost) → get a description
+  ("3-tier SaaS pricing card with hover effects")
+- Send description to image search API (Pexels free / Bing if results
+  too stock-photo-y) → get 6-12 results
+- Display in pick UI as inline gallery → user clicks → auto-attached
+  via new `POST /element-context/:id/attachments/from-url`
+- **Cost per search (Gemini Flash + Pexels):** ~$0.005
+- **Tier caps:**
+  - Free: 0 (feature not available)
+  - **Pro: 5 design searches / month** ($0.025 max user cost)
+  - **Max: 100 design searches / month** ($0.50 max user cost)
+
+**New env vars:**
+- `GEMINI_API_KEY` (or `OPENAI_API_KEY`)
+- `PEXELS_API_KEY` (free tier 200 reqs/h)
+
+**New server bits:**
+- `server/lib/vision.js` — vision API wrapper (no-op if key missing)
+- `server/lib/imagesearch.js` — image search wrapper
+- Route: `POST /element-context/:id/find-designs`
+- Route: `POST /element-context/:id/attachments/from-url`
+- Counter: `design_searches_used:<userId>:<YYYYMM>` (35d TTL)
+- `auth.js`: `getDesignSearchQuota(userId, plan)` + PLANS update
+- Hard ceilings: per-user monthly cap + global circuit-breaker on
+  total searches/hour to bound runaway API spend
+
+**Effort:** ~6-8 hours.
+
+#### Phase B3 — Curated UI screenshot DB (deferred)
+
+Pre-collected real UI screenshots tagged by element type. Best UX
+but requires real curation effort. Skip until Phase B2 validates
+demand. Sources to consider when we get there: Mobbin, Dribbble,
+Page Flows.
+
+### Recommended ship order
+
+1. **Voice + Pinterest deep-link together** — both zero infra,
+   immediate user value, validate engagement before paying for AI.
+2. **Phase B2 (vision + Pexels)** — only if Phase B1 click rate
+   suggests users want inline results.
+3. **Skip B3** unless Phase B2 isn't good enough, in which case
+   it's a content team / curation problem, not pure engineering.
+
+---
+
 ## Shipped — Attachments, Edit Picks, Top-ups, Max card
 
 Status: live in production as of May 2026. Spec preserved below for
