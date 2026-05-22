@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import observe from '../../analytics.js';
 
 export default function Upgrade() {
   const [email, setEmail] = useState(() => {
@@ -13,7 +12,6 @@ export default function Upgrade() {
       setError('Please enter a valid email address.');
       return;
     }
-    observe.track('upgrade_checkout_started');
     setLoading(true);
     setError('');
     try {

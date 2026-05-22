@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import observe from '../../analytics.js';
 
 const CWS_URL = 'https://chromewebstore.google.com/detail/clasp-it/inelkjifjfaepgpdndcgdkpmlopggnlk';
 
 export default function Home() {
   const [demoOpen, setDemoOpen] = useState(false);
 
-  const openDemo = () => { observe.track('demo_opened'); setDemoOpen(true); };
+  const openDemo = () => setDemoOpen(true);
   const closeDemo = () => setDemoOpen(false);
 
   useEffect(() => {
@@ -70,7 +69,6 @@ export default function Home() {
             className="btn btn-primary"
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => observe.track('install_cws_clicked')}
           >
             Add to Chrome — it's free
           </a>
@@ -180,7 +178,7 @@ export default function Home() {
             <p className="plan-name">Free</p>
             <p className="plan-price">$0</p>
             <p className="plan-desc">10 picks per day, always free.</p>
-            <a href={CWS_URL} className="plan-cta plan-cta-free" target="_blank" rel="noopener noreferrer" onClick={() => observe.track('install_cws_clicked')}>Get started free</a>
+            <a href={CWS_URL} className="plan-cta plan-cta-free" target="_blank" rel="noopener noreferrer">Get started free</a>
             <hr className="plan-divider" />
             <ul className="plan-features">
               <li>DOM &amp; selector</li>
@@ -197,7 +195,7 @@ export default function Home() {
             <p className="plan-name">Pro</p>
             <p className="plan-price">$2.99 <span>/mo</span></p>
             <p className="plan-desc">Unlimited picks + full context capture. Or save 33% at $24/yr.</p>
-            <a href="/upgrade" id="pro-cta" className="plan-cta plan-cta-pro" onClick={() => observe.track('upgrade_cta_clicked')}>Get Pro</a>
+            <a href="/upgrade" id="pro-cta" className="plan-cta plan-cta-pro">Get Pro</a>
             <hr className="plan-divider" />
             <ul className="plan-features">
               <li>Everything in Free</li>

@@ -6,8 +6,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js",
-    "build:extension": "cd .. && zip -r server/public/downloads/clasp-it-extension.zip extension/ -x '*.DS_Store' -x '__MACOSX/*' -x '*.git*'"
+    "dev": "node --watch index.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.658.0",

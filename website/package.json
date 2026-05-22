@@ -9,7 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@vibesignals/observe": "^1.0.0-b1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
