@@ -1,0 +1,25 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schemas/server-card.json",
+  "serverInfo": {
+    "name": "clasp-it",
+    "version": "1.1.0",
+    "description": "Pick any webpage element and send its context to Claude Code"
+  },
+  "transport": {
+    "type": "http",
+    "url": "https://claspit.dev/mcp"
+  },
+  "authentication": {
+    "type": "bearer",
+    "description": "API key with cit_ prefix. Get one free at https://claspit.dev"
+  },
+  "capabilities": {
+    "tools": [
+      { "name": "get_element_context", "description": "Get the most recently picked element context" },
+      { "name": "get_element_context_by_id", "description": "Get a specific pick by ID" },
+      { "name": "list_recent_picks", "description": "List recent element picks" },
+      { "name": "clear_context", "description": "Clear all stored picks" },
+      { "name": "update_pick_status", "description": "Update pick status (in_progress, completed)" }
+    ]
+  }
+}

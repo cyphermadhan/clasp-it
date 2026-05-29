@@ -1,0 +1,11 @@
+{
+  "$schema": "https://agentskills.io/schemas/index.json",
+  "skills": [
+    {
+      "name": "element-pick",
+      "type": "mcp-tool",
+      "description": "Pick a webpage element and receive its full context (HTML, CSS, selector, screenshot) for AI-assisted fixing",
+      "url": "https://claspit.dev/.well-known/mcp/server-card.json"
+    }
+  ]
+}

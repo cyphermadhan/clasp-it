@@ -52,6 +52,50 @@ app.use('/auth/webhook', express.raw({ type: 'application/json', limit: '1mb' })
 // generous JSON limit avoids silent 413s. Free-tier picks have a tighter
 // 50 KB guard at routes/element.js (rejects screenshots etc).
 app.use(express.json({ limit: '5mb' }));
+
+// Agent discovery: Link headers on homepage (RFC 8288)
+app.use((req, res, next) => {
+  if (req.path === '/' || req.path === '/index.html') {
+    res.setHeader('Link', [
+      '</.well-known/mcp/server-card.json>; rel="mcp-server-card"',
+      '</.well-known/api-catalog>; rel="api-catalog"',
+      '</auth.md>; rel="service-doc"',
+    ].join(', '));
+  }
+  next();
+});
+
+// Agent discovery: markdown negotiation for homepage
+app.get('/', (req, res, next) => {
+  if (req.headers.accept?.includes('text/markdown')) {
+    const md = [
+      '# Clasp-it\n',
+      'Pick any webpage element and send its full context to Claude Code via MCP.\n',
+      '## Quick start',
+      '1. Install from Chrome Web Store',
+      '2. Click any element → add a prompt → send',
+      '3. Claude Code receives HTML, CSS, selector, screenshot\n',
+      '## MCP install',
+      '```bash',
+      'claude mcp add --transport http clasp-it https://claspit.dev/mcp --header "Authorization: Bearer YOUR_API_KEY"',
+      '```\n',
+      '## Links',
+      '- [Auth docs](/auth.md)',
+      '- [MCP Server Card](/.well-known/mcp/server-card.json)',
+      '- [Health](/health)',
+    ].join('\n');
+    res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+    return res.send(md);
+  }
+  next();
+});
+
+// Serve api-catalog with correct content-type (extensionless file)
+app.get('/.well-known/api-catalog', (_req, res) => {
+  res.setHeader('Content-Type', 'application/linkset+json');
+  res.sendFile(join(__dirname, 'public', '.well-known', 'api-catalog'));
+});
+
 app.use(express.static(join(__dirname, 'public'), { extensions: ['html'] }));
 
 // ─── Health check ─────────────────────────────────────────────────────────────
@@ -71,6 +115,11 @@ app.use('/billing', authRouter);
 app.use('/element-context', elementRouter);
 app.use('/picks', elementRouter);
 app.use('/mcp', mcpRouter);
+
+// ─── Agent discovery (isitagentready.com compliance) ─────────────────────────
+// Static files handle: robots.txt, auth.md, .well-known/mcp/server-card.json,
+// .well-known/api-catalog, .well-known/agent-skills/index.json.
+// Only the Link headers and markdown negotiation need middleware/routes.
 
 // ─── 404 catch-all ────────────────────────────────────────────────────────────
 

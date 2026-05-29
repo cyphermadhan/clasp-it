@@ -1,0 +1,10 @@
+{
+  "linkset": [
+    {
+      "anchor": "https://claspit.dev/mcp",
+      "service-desc": [{ "href": "https://claspit.dev/.well-known/mcp/server-card.json", "type": "application/json" }],
+      "service-doc": [{ "href": "https://claspit.dev/auth.md", "type": "text/markdown" }],
+      "status": [{ "href": "https://claspit.dev/health", "type": "application/json" }]
+    }
+  ]
+}

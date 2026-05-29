@@ -1,4 +1,11 @@
 User-agent: *
 Allow: /
+Disallow: /auth/
+Disallow: /element-context/
+Disallow: /picks/
+Disallow: /billing/
 
 Sitemap: https://claspit.dev/sitemap.xml
+
+# Content Signals (https://contentsignals.org/)
+Content-Signal: ai-train=no, search=yes, ai-input=yes
