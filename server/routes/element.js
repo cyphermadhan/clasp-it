@@ -309,25 +309,45 @@ router.delete('/completed', requireApiKey, apiLimit, async (req, res) => {
   try {
     const removed = await removeCompletedPicks(userId);
 
-    const keys = removed.flatMap((p) => p.attachments ?? []).map((a) => a.r2Key).filter(Boolean);
-    if (keys.length > 0) {
-      await deleteObjects(keys);
-      if (pool) {
-        await pool
-          .query('DELETE FROM attachments WHERE pick_id = ANY($1) AND user_id = $2', [removed.map((p) => p.id), userId])
-          .catch((err) => console.warn('[element-context] DELETE completed attachments cleanup failed:', err.message));
-      }
+    // Postgres holds the account's full history, which outlives the 10-pick
+    // Redis ring buffer above — a completed pick can already have aged out
+    // of that buffer (evicted by newer picks) while still sitting in
+    // Postgres with deleted_at NULL. Only purging what removeCompletedPicks
+    // found left those rows behind, and they'd resurrect via GET /recent
+    // the next time the extension hydrates history from the server. So
+    // purge every completed, not-yet-deleted pick directly from Postgres
+    // too, and union the ids with whatever the Redis pass removed.
+    let purgeIds = removed.map((p) => p.id);
+    if (pool) {
+      const { rows } = await pool.query(
+        `SELECT id FROM picks WHERE user_id = $1 AND status = 'completed' AND deleted_at IS NULL`,
+        [userId],
+      );
+      purgeIds = [...new Set([...purgeIds, ...rows.map((r) => r.id)])];
     }
 
-    // Mark gone in persistent history too, so "Clear done" stays meaningful —
-    // otherwise a fresh install would resurrect these via GET /recent.
-    if (pool && removed.length > 0) {
-      pool
-        .query('UPDATE picks SET deleted_at = now() WHERE id = ANY($1) AND user_id = $2', [removed.map((p) => p.id), userId])
+    if (pool && purgeIds.length > 0) {
+      const { rows: atts } = await pool.query(
+        'SELECT r2_key FROM attachments WHERE pick_id = ANY($1) AND user_id = $2',
+        [purgeIds, userId],
+      );
+      const keys = atts.map((a) => a.r2_key).filter(Boolean);
+      if (keys.length > 0) await deleteObjects(keys);
+
+      await pool
+        .query('DELETE FROM attachments WHERE pick_id = ANY($1) AND user_id = $2', [purgeIds, userId])
+        .catch((err) => console.warn('[element-context] DELETE completed attachments cleanup failed:', err.message));
+
+      await pool
+        .query('UPDATE picks SET deleted_at = now() WHERE id = ANY($1) AND user_id = $2', [purgeIds, userId])
         .catch((err) => console.warn('[element-context] DELETE completed history purge failed:', err.message));
+    } else {
+      // No pool (local dev) — fall back to whatever the Redis-only pass found.
+      const keys = removed.flatMap((p) => p.attachments ?? []).map((a) => a.r2Key).filter(Boolean);
+      if (keys.length > 0) await deleteObjects(keys);
     }
 
-    return res.json({ success: true, removed: removed.length });
+    return res.json({ success: true, removed: purgeIds.length });
   } catch (err) {
     console.error('[element-context] DELETE completed error:', err);
     return res.status(500).json({ error: 'Internal server error' });
