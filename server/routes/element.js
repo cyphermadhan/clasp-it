@@ -24,6 +24,7 @@ import {
   decrementAttachmentsUsed,
   removePickFromList,
   removeCompletedPicks,
+  listRecentPicks,
 } from '../lib/storage.js';
 import { requireApiKey, gatePayload, PLANS, getAttachmentQuota } from '../lib/auth.js';
 import { pool } from '../lib/db.js';
@@ -164,6 +165,42 @@ router.get('/quota', requireApiKey, apiLimit, async (req, res) => {
     return res.json(quota);
   } catch (err) {
     console.error('[quota] error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── GET /element-context/recent ──────────────────────────────────────────────
+// Lightweight snapshot of the caller's stored picks, shaped for the extension
+// to hydrate local history — e.g. the same API key pasted into a second
+// install (a locally-loaded dev copy) that has no local history of its own,
+// since chrome.storage.local is scoped per-extension-id, not per-account.
+// Static path — declared before any /:id routes so Express matches it first.
+
+router.get('/recent', requireApiKey, apiLimit, async (req, res) => {
+  try {
+    const picks = await listRecentPicks(req.userId);
+    const shaped = picks.map((p) => {
+      const el = p.element ?? {};
+      const label = (el.tagName || 'element') + (Array.isArray(el.classList) && el.classList[0] ? `.${el.classList[0]}` : '');
+      return {
+        pickId: p.id,
+        elementLabel: label,
+        pageURL: el.pageURL ?? '',
+        prompt: p.prompt ?? '',
+        status: p.status ?? 'not_started',
+        sentAt: p.timestamp,
+        attachmentCount: Array.isArray(p.attachments) ? p.attachments.length : 0,
+        attachments: (p.attachments ?? []).map((a) => ({
+          id: a.id,
+          filename: a.filename,
+          mimeType: a.mimeType,
+          sizeBytes: a.sizeBytes,
+        })),
+      };
+    });
+    return res.json({ picks: shaped });
+  } catch (err) {
+    console.error('[element-context] GET recent error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

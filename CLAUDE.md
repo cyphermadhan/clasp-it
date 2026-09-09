@@ -147,6 +147,7 @@ DELETE /element-context/completed              — bulk-clear all completed pick
 POST   /element-context/:id/attachments        — multipart upload (1+ files); 409 if pulled
 DELETE /element-context/:id/attachments/:aid   — remove one attachment; counter decrements when last
 GET    /element-context/quota                  — current month attachment quota
+GET    /element-context/recent                 — snapshot of stored picks, for hydrating local history on a new install
 GET    /picks/statuses?ids=                    — status map for pick IDs
 POST   /billing/checkout                       — create Dodo Pro checkout session
 POST   /billing/checkout/topup                 — create Dodo top-up ($5 = +25) checkout
@@ -188,6 +189,7 @@ To update the key later: `claude mcp remove clasp` then re-add.
 - ✕ on a not_started item with a server-confirmed pickId calls `DELETE /element-context/:id` first (best-effort), then removes locally
 - Prompt text shown inline under element label; attachment count shown as "📎 N attachments"
 - "Clear done" link (history header, next to the picks counter) appears once any pick is `completed`; calls `DELETE /element-context/completed` (best-effort) then drops completed items locally. Exists because the server's Redis list caps at 10 picks *total* regardless of status — lingering completed picks can evict not-yet-seen picks before Claude ever reads them.
+- History is per-install, not per-account: `chrome.storage.local` is scoped to the extension's own ID, so a locally-loaded dev copy and the Chrome Web Store install never share storage even with the same API key. On login/init, `hydrateHistoryFromServer()` (`sidepanel.js`) calls `GET /element-context/recent` and merges in any server-known picks the local install hasn't seen yet (dedup by `pickId`; never drops local-only items still mid-send).
 
 ## Feature gating
 - Free: DOM & Selector + Computed Styles only (pro toggles greyed with "PRO" badge); no attachments

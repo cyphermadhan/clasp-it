@@ -108,6 +108,7 @@ async function init() {
     showScreen("main");
     startStatusPolling();
     fetchAuthInfo(); // refresh in background
+    hydrateHistoryFromServer(); // pull in picks made from other installs of this account
     renderOnboarding();
   } else if (stored.clasp_device_id) {
     // Resume verifying state after panel reload
@@ -183,6 +184,53 @@ async function saveKey() {
   showScreen("main");
   startStatusPolling();
   fetchAuthInfo();
+  hydrateHistoryFromServer(); // pull in picks made from other installs of this account
+}
+
+/**
+ * Pull the account's server-side picks into local history. chrome.storage.local
+ * is scoped per extension install (a locally-loaded dev copy has a different
+ * extension id than the Chrome Web Store install), so pasting the same API key
+ * into a second install otherwise shows an empty list even though the server
+ * already has picks for that account. Merges by pickId — never drops local-only
+ * items (e.g. a pick still mid-send) that the server doesn't know about yet.
+ */
+async function hydrateHistoryFromServer() {
+  if (!app.apiKey) return;
+  try {
+    const res = await fetch(`${SERVER_URL}/element-context/recent`, {
+      headers: { "Authorization": `Bearer ${app.apiKey}` },
+    });
+    if (!res.ok) return;
+    const { picks } = await res.json();
+    if (!Array.isArray(picks) || picks.length === 0) return;
+
+    const known = new Set(app.history.map(h => h.pickId).filter(Boolean));
+    const fresh = picks
+      .filter(p => !known.has(p.pickId))
+      .map(p => ({
+        id:              p.pickId,
+        pickId:          p.pickId,
+        elementLabel:    p.elementLabel,
+        pageURL:         p.pageURL,
+        prompt:          p.prompt,
+        status:          p.status,
+        sentAt:          p.sentAt,
+        attachmentCount: p.attachmentCount,
+        attachments:     p.attachments,
+      }));
+
+    if (fresh.length === 0) return;
+
+    const max = app.plan === "pro" ? 50 : 10;
+    app.history = [...app.history, ...fresh]
+      .sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt))
+      .slice(0, max);
+    await storageSet({ clasp_history: app.history });
+    if (app.screen === "main") renderHistory();
+  } catch {
+    // best-effort — local history stands as-is on failure
+  }
 }
 
 // ── Auth: device polling ─────────────────────────────────────────────────────
