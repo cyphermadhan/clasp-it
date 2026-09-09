@@ -267,6 +267,14 @@ function createMcpServer(userId) {
             );
           }
 
+          // Keep persistent history (used to hydrate a second install via
+          // GET /element-context/recent) in sync with the Redis working set.
+          if (updated && pool) {
+            pool
+              .query('UPDATE picks SET status = $1 WHERE id = $2 AND user_id = $3', [status, id, userId])
+              .catch((err) => console.warn('[mcp] status sync to Postgres failed:', err.message));
+          }
+
           return {
             content: [{
               type: 'text',

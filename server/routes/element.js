@@ -37,6 +37,15 @@ const apiLimit = apiKeyLimiter({ max: 600, windowMs: 60_000 });
 
 const router = Router();
 
+// Derives a short "TAG.class" label for a picked element (e.g. "BUTTON.btn-primary").
+// Shared by the POST insert (persisted to Postgres) and both /recent branches
+// (Redis fallback + Postgres-backed) so the label formula stays in one place.
+function elementLabelFor(el) {
+  const tag = el?.tagName || 'element';
+  const firstClass = Array.isArray(el?.classList) ? el.classList[0] : null;
+  return tag + (firstClass ? `.${firstClass}` : '');
+}
+
 // ─── Multer (multipart parser) ────────────────────────────────────────────────
 // Memory storage — files are forwarded straight to R2, no disk hop.
 // Hard upper bound = 25MB (max plan ceiling); per-plan size enforced in handler.
@@ -112,8 +121,8 @@ router.post('/', requireApiKey, apiLimit, async (req, res) => {
         .query(
           `INSERT INTO picks
              (id, user_id, page_url, selector, prompt, plan_at_time,
-              had_screenshot, had_console, had_network, had_react)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+              had_screenshot, had_console, had_network, had_react, element_label)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
           [
             id,
             userId,
@@ -125,6 +134,7 @@ router.post('/', requireApiKey, apiLimit, async (req, res) => {
             Boolean(toggles.console || ctx.consoleLogs),
             Boolean(toggles.network || ctx.networkRequests),
             Boolean(toggles.react || ctx.reactProps),
+            elementLabelFor(el),
           ],
         )
         .catch((err) => console.error('[element-context] Analytics insert failed:', err.message));
@@ -177,14 +187,65 @@ router.get('/quota', requireApiKey, apiLimit, async (req, res) => {
 // Static path — declared before any /:id routes so Express matches it first.
 
 router.get('/recent', requireApiKey, apiLimit, async (req, res) => {
+  const { userId, userPlan } = req;
+
   try {
-    const picks = await listRecentPicks(req.userId);
+    // Postgres holds the account's full history (persistent, never trimmed
+    // except on explicit delete) — prefer it so hydration reflects the
+    // plan's real historyLimit (free: 5, pro: 50, max: 200), not just
+    // whatever's still in the AI's 10-pick Redis working set. Falls back to
+    // Redis when Postgres isn't configured (local dev, matching this repo's
+    // graceful-degradation convention elsewhere).
+    if (pool) {
+      const limit = (PLANS[userPlan] ?? PLANS.free).historyLimit;
+
+      const { rows } = await pool.query(
+        `SELECT id, page_url, element_label, prompt, status, created_at
+           FROM picks
+          WHERE user_id = $1 AND deleted_at IS NULL
+          ORDER BY created_at DESC
+          LIMIT $2`,
+        [userId, limit],
+      );
+
+      const ids = rows.map((r) => r.id);
+      const attachmentsByPick = new Map();
+      if (ids.length > 0) {
+        const { rows: atts } = await pool.query(
+          `SELECT pick_id, id, filename, mime_type AS "mimeType", size_bytes AS "sizeBytes"
+             FROM attachments
+            WHERE pick_id = ANY($1) AND user_id = $2`,
+          [ids, userId],
+        );
+        for (const a of atts) {
+          const list = attachmentsByPick.get(a.pick_id) ?? [];
+          list.push({ id: a.id, filename: a.filename, mimeType: a.mimeType, sizeBytes: a.sizeBytes });
+          attachmentsByPick.set(a.pick_id, list);
+        }
+      }
+
+      const shaped = rows.map((r) => {
+        const attachments = attachmentsByPick.get(r.id) ?? [];
+        return {
+          pickId: r.id,
+          elementLabel: r.element_label || 'element',
+          pageURL: r.page_url ?? '',
+          prompt: r.prompt ?? '',
+          status: r.status ?? 'not_started',
+          sentAt: r.created_at,
+          attachmentCount: attachments.length,
+          attachments,
+        };
+      });
+      return res.json({ picks: shaped });
+    }
+
+    const picks = await listRecentPicks(userId);
     const shaped = picks.map((p) => {
       const el = p.element ?? {};
-      const label = (el.tagName || 'element') + (Array.isArray(el.classList) && el.classList[0] ? `.${el.classList[0]}` : '');
       return {
         pickId: p.id,
-        elementLabel: label,
+        elementLabel: elementLabelFor(el),
         pageURL: el.pageURL ?? '',
         prompt: p.prompt ?? '',
         status: p.status ?? 'not_started',
@@ -258,6 +319,14 @@ router.delete('/completed', requireApiKey, apiLimit, async (req, res) => {
       }
     }
 
+    // Mark gone in persistent history too, so "Clear done" stays meaningful —
+    // otherwise a fresh install would resurrect these via GET /recent.
+    if (pool && removed.length > 0) {
+      pool
+        .query('UPDATE picks SET deleted_at = now() WHERE id = ANY($1) AND user_id = $2', [removed.map((p) => p.id), userId])
+        .catch((err) => console.warn('[element-context] DELETE completed history purge failed:', err.message));
+    }
+
     return res.json({ success: true, removed: removed.length });
   } catch (err) {
     console.error('[element-context] DELETE completed error:', err);
@@ -300,6 +369,15 @@ router.delete('/:id', requireApiKey, apiLimit, async (req, res) => {
     }
 
     await removePickFromList(userId, pickId);
+
+    // Mark gone in persistent history too, so a cancelled pick doesn't
+    // resurface via GET /recent on a fresh install.
+    if (pool) {
+      pool
+        .query('UPDATE picks SET deleted_at = now() WHERE id = $1 AND user_id = $2', [pickId, userId])
+        .catch((err) => console.warn('[element-context] DELETE history purge failed:', err.message));
+    }
+
     return res.json({ success: true });
   } catch (err) {
     console.error('[element-context] DELETE error:', err);

@@ -1,5 +1,15 @@
 # Implementation Log
 
+## [2026-09-09] — Source history hydration from Postgres, up to plan's historyLimit
+
+- **What:** `GET /element-context/recent` now sources from the persistent `picks` Postgres table (capped at `PLANS[plan].historyLimit` — free: 5, pro: 50, max: 200) instead of the AI's 10-pick Redis working set, so a second install actually sees full account history, not just whatever's left in the 10-slot buffer.
+- **Files:** `server/lib/db.js` (new `element_label`, `deleted_at` columns), `server/routes/element.js` (`elementLabelFor` helper, POST insert, `/recent` Postgres branch + Redis fallback, `deleted_at` writes in cancel + clear-completed), `server/routes/mcp.js` (`update_pick_status` now writes `status` through to Postgres), `CLAUDE.md`.
+- **Details:**
+  - Wired up `historyLimit` in `PLANS` (`server/lib/auth.js`) — it existed but was never read anywhere before this.
+  - Deletions are permanent from history's perspective: cancel (`DELETE /:id`) and "Clear done" (`DELETE /completed`) both set `deleted_at = now()` in Postgres, so cleared/cancelled picks never resurface via hydration on a fresh install — confirmed with the user this is the desired semantics over an immutable log.
+  - Falls back to the pre-existing Redis-based listing when `DATABASE_URL` is unset, matching this repo's graceful-degradation convention.
+  - No extension changes needed — response shape is unchanged, so `hydrateHistoryFromServer()` merges/sorts/slices exactly as before.
+
 ## [2026-09-09] — Hydrate local history from server on login
 
 - **What:** A second install using the same API key (e.g. a locally-loaded dev copy) now pulls in the account's existing server-side picks on login/init instead of showing an empty history list.

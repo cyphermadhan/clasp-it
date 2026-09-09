@@ -70,6 +70,8 @@ export async function initSchema() {
     );
 
     ALTER TABLE picks ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'not_started';
+    ALTER TABLE picks ADD COLUMN IF NOT EXISTS element_label TEXT;
+    ALTER TABLE picks ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
     CREATE TABLE IF NOT EXISTS attachments (
       id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),

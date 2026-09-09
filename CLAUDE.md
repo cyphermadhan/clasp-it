@@ -142,12 +142,12 @@ GET    /auth/poll/:deviceId                    — poll for magic link verificat
 GET    /auth/info                              — email + plan for API key
 POST   /element-context                        — store a pick (returns id)
 PATCH  /element-context/:id                    — edit prompt; 409 if pulled
-DELETE /element-context/:id                    — cancel pick + R2 cleanup + counter decrement
-DELETE /element-context/completed              — bulk-clear all completed picks (frees server ring-buffer slots)
+DELETE /element-context/:id                    — cancel pick + R2 cleanup + counter decrement + marks deleted_at in Postgres
+DELETE /element-context/completed              — bulk-clear all completed picks (frees server ring-buffer slots) + marks deleted_at in Postgres
 POST   /element-context/:id/attachments        — multipart upload (1+ files); 409 if pulled
 DELETE /element-context/:id/attachments/:aid   — remove one attachment; counter decrements when last
 GET    /element-context/quota                  — current month attachment quota
-GET    /element-context/recent                 — snapshot of stored picks, for hydrating local history on a new install
+GET    /element-context/recent                 — full persistent history (up to plan's historyLimit), for hydrating local history on a new install
 GET    /picks/statuses?ids=                    — status map for pick IDs
 POST   /billing/checkout                       — create Dodo Pro checkout session
 POST   /billing/checkout/topup                 — create Dodo top-up ($5 = +25) checkout
@@ -190,6 +190,7 @@ To update the key later: `claude mcp remove clasp` then re-add.
 - Prompt text shown inline under element label; attachment count shown as "📎 N attachments"
 - "Clear done" link (history header, next to the picks counter) appears once any pick is `completed`; calls `DELETE /element-context/completed` (best-effort) then drops completed items locally. Exists because the server's Redis list caps at 10 picks *total* regardless of status — lingering completed picks can evict not-yet-seen picks before Claude ever reads them.
 - History is per-install, not per-account: `chrome.storage.local` is scoped to the extension's own ID, so a locally-loaded dev copy and the Chrome Web Store install never share storage even with the same API key. On login/init, `hydrateHistoryFromServer()` (`sidepanel.js`) calls `GET /element-context/recent` and merges in any server-known picks the local install hasn't seen yet (dedup by `pickId`; never drops local-only items still mid-send).
+- `GET /element-context/recent` is backed by Postgres (`picks` table), not the AI's 10-pick Redis working set — that table logs every pick permanently and is capped only by `PLANS[plan].historyLimit` (free: 5, pro: 50, max: 200). Falls back to the Redis-based list when `DATABASE_URL` isn't set (dev). `picks.element_label` is set at insert time (`POST /element-context`); `picks.status` is kept in sync by the `update_pick_status` MCP tool; `picks.deleted_at` is set by the cancel (`DELETE /:id`) and bulk clear-done (`DELETE /completed`) routes so removed picks never resurface via hydration.
 
 ## Feature gating
 - Free: DOM & Selector + Computed Styles only (pro toggles greyed with "PRO" badge); no attachments
