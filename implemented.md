@@ -1,5 +1,11 @@
 # Implementation Log
 
+## [2026-09-09] — Bump extension to v1.1.1, package for Chrome Web Store
+
+- **What:** Bumped `extension/manifest.json` and the JSON-LD `softwareVersion` (`website/index.html`, rebuilt into `server/public/index.html`) to 1.1.1 to cover this session's "Clear done" + history-hydration changes. Built `clasp-it-v1.1.1.zip` (contents at zip root) ready for Developer Dashboard upload.
+- **Files:** `extension/manifest.json`, `website/index.html`, `server/public/index.html` (generated).
+- **Details:** Live store listing is at `chromewebstore.google.com/detail/clasp-it/inelkjifjfaepgpdndcgdkpmlopggnlk`; zip is untracked at repo root (build artifact, not committed).
+
 ## [2026-09-09] — Source history hydration from Postgres, up to plan's historyLimit
 
 - **What:** `GET /element-context/recent` now sources from the persistent `picks` Postgres table (capped at `PLANS[plan].historyLimit` — free: 5, pro: 50, max: 200) instead of the AI's 10-pick Redis working set, so a second install actually sees full account history, not just whatever's left in the 10-slot buffer.
