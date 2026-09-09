@@ -143,6 +143,7 @@ GET    /auth/info                              — email + plan for API key
 POST   /element-context                        — store a pick (returns id)
 PATCH  /element-context/:id                    — edit prompt; 409 if pulled
 DELETE /element-context/:id                    — cancel pick + R2 cleanup + counter decrement
+DELETE /element-context/completed              — bulk-clear all completed picks (frees server ring-buffer slots)
 POST   /element-context/:id/attachments        — multipart upload (1+ files); 409 if pulled
 DELETE /element-context/:id/attachments/:aid   — remove one attachment; counter decrements when last
 GET    /element-context/quota                  — current month attachment quota
@@ -186,6 +187,7 @@ To update the key later: `claude mcp remove clasp` then re-add.
 - `not_started` items: row is clickable (opens edit screen) and shows ✕ delete; other statuses show status badge
 - ✕ on a not_started item with a server-confirmed pickId calls `DELETE /element-context/:id` first (best-effort), then removes locally
 - Prompt text shown inline under element label; attachment count shown as "📎 N attachments"
+- "Clear done" link (history header, next to the picks counter) appears once any pick is `completed`; calls `DELETE /element-context/completed` (best-effort) then drops completed items locally. Exists because the server's Redis list caps at 10 picks *total* regardless of status — lingering completed picks can evict not-yet-seen picks before Claude ever reads them.
 
 ## Feature gating
 - Free: DOM & Selector + Computed Styles only (pro toggles greyed with "PRO" badge); no attachments

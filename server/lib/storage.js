@@ -178,6 +178,42 @@ export async function removePickFromList(userId, pickId) {
   return null;
 }
 
+/**
+ * Remove every pick marked `completed` from the user's list.
+ * Frees slots in the 10-pick ring buffer so in-flight picks aren't evicted
+ * by finished ones, and list_recent_picks isn't cluttered with old work.
+ * Returns the removed picks (so callers can purge any lingering attachments).
+ * @param {string} userId
+ * @returns {Promise<object[]>}
+ */
+export async function removeCompletedPicks(userId) {
+  const key = memKey(userId);
+
+  if (redis) {
+    const raws = await redis.lrange(key, 0, -1);
+    const removed = [];
+    for (const raw of raws) {
+      const pick = deserialize(raw);
+      if (pick?.status === 'completed') {
+        await redis.lrem(key, 1, raw);
+        removed.push(pick);
+      }
+    }
+    return removed;
+  }
+
+  const list = memStore.get(key) ?? [];
+  const remaining = [];
+  const removed = [];
+  for (const raw of list) {
+    const pick = deserialize(raw);
+    if (pick?.status === 'completed') removed.push(pick);
+    else remaining.push(raw);
+  }
+  memStore.set(key, remaining);
+  return removed;
+}
+
 // ─── Pick status ──────────────────────────────────────────────────────────────
 
 /**

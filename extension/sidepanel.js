@@ -782,6 +782,11 @@ function renderHistory() {
     rolloff.style.display = active > 10 ? "" : "none";
   }
 
+  const clearCompletedBtn = document.getElementById("sp-clear-completed-btn");
+  if (clearCompletedBtn) {
+    clearCompletedBtn.style.display = app.history.some(h => h.status === "completed") ? "" : "none";
+  }
+
   for (const item of app.history) {
     const statusLabel = { not_started: "Waiting", in_progress: "In progress", completed: "Done" }[item.status] || "Waiting";
     const statusClass = item.status || "not_started";
@@ -871,6 +876,27 @@ async function deleteHistoryItem(item) {
     }
   }
   app.history = app.history.filter(h => h.id !== item.id);
+  await storageSet({ clasp_history: app.history });
+  renderHistory();
+}
+
+/**
+ * Clear every "Done" (completed) pick from history. Also purges them
+ * server-side so they stop occupying slots in the 10-pick ring buffer —
+ * otherwise old finished picks can crowd out picks still waiting for Claude.
+ */
+async function clearCompletedPicks() {
+  if (app.apiKey) {
+    try {
+      await fetch(`${SERVER_URL}/element-context/completed`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${app.apiKey}` },
+      });
+    } catch {
+      // best-effort — local removal proceeds either way
+    }
+  }
+  app.history = app.history.filter(h => h.status !== "completed");
   await storageSet({ clasp_history: app.history });
   renderHistory();
 }
@@ -968,6 +994,8 @@ document.getElementById("sp-onboarding-dismiss").addEventListener("click", async
   await storageSet({ clasp_mcp_dismissed: true });
   document.getElementById("sp-onboarding-card").style.display = "none";
 });
+
+document.getElementById("sp-clear-completed-btn").addEventListener("click", clearCompletedPicks);
 
 // ── Header ────────────────────────────────────────────────────────────────────
 

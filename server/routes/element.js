@@ -23,6 +23,7 @@ import {
   incrementAttachmentsUsed,
   decrementAttachmentsUsed,
   removePickFromList,
+  removeCompletedPicks,
 } from '../lib/storage.js';
 import { requireApiKey, gatePayload, PLANS, getAttachmentQuota } from '../lib/auth.js';
 import { pool } from '../lib/db.js';
@@ -194,6 +195,35 @@ router.patch('/:id', requireApiKey, apiLimit, async (req, res) => {
     return res.json({ success: true, pick: updated });
   } catch (err) {
     console.error('[element-context] PATCH error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─── DELETE /element-context/completed ────────────────────────────────────────
+// Bulk-clear every pick marked completed. Frees slots in the server's 10-pick
+// ring buffer so older completed picks don't crowd out in-flight ones, and
+// list_recent_picks/get_element_context aren't cluttered with finished work.
+// Must be registered before /:id or Express would treat "completed" as an id.
+
+router.delete('/completed', requireApiKey, apiLimit, async (req, res) => {
+  const { userId } = req;
+
+  try {
+    const removed = await removeCompletedPicks(userId);
+
+    const keys = removed.flatMap((p) => p.attachments ?? []).map((a) => a.r2Key).filter(Boolean);
+    if (keys.length > 0) {
+      await deleteObjects(keys);
+      if (pool) {
+        await pool
+          .query('DELETE FROM attachments WHERE pick_id = ANY($1) AND user_id = $2', [removed.map((p) => p.id), userId])
+          .catch((err) => console.warn('[element-context] DELETE completed attachments cleanup failed:', err.message));
+      }
+    }
+
+    return res.json({ success: true, removed: removed.length });
+  } catch (err) {
+    console.error('[element-context] DELETE completed error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

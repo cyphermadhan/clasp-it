@@ -250,6 +250,17 @@
       align-items: center;
     }
 
+    .sp-history-header-right { display: flex; align-items: center; gap: 8px; }
+
+    .sp-clear-completed-btn {
+      font: inherit; text-transform: none; letter-spacing: normal;
+      background: none; border: none; padding: 0; cursor: pointer;
+      color: var(--text-tertiary); text-decoration: underline;
+      text-decoration-color: transparent;
+      transition: color 0.1s, text-decoration-color 0.1s;
+    }
+    .sp-clear-completed-btn:hover { color: var(--text-secondary); text-decoration-color: var(--text-secondary); }
+
     .sp-history-empty {
       padding: 28px 14px; text-align: center;
       font-size: 13px; color: var(--text-ghost); line-height: 1.5;
@@ -846,7 +857,13 @@
         <p class="sp-mcp-step">Then say: <em>"fix all recent picks using clasp-it"</em></p>
       </div>
     </div>
-    <div class="sp-history-header"><span>Recent picks</span><span id="sp-picks-counter"></span></div>
+    <div class="sp-history-header">
+      <span>Recent picks</span>
+      <span class="sp-history-header-right">
+        <button id="sp-clear-completed-btn" class="sp-clear-completed-btn" style="display:none">Clear done</button>
+        <span id="sp-picks-counter"></span>
+      </span>
+    </div>
     <div id="sp-claude-tip" class="sp-claude-tip" style="display:none"
          data-copy="fix all recent picks using clasp-it" title="Click to copy">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
