@@ -338,9 +338,14 @@ router.delete('/completed', requireApiKey, apiLimit, async (req, res) => {
         .query('DELETE FROM attachments WHERE pick_id = ANY($1) AND user_id = $2', [purgeIds, userId])
         .catch((err) => console.warn('[element-context] DELETE completed attachments cleanup failed:', err.message));
 
-      await pool
-        .query('UPDATE picks SET deleted_at = now() WHERE id = ANY($1) AND user_id = $2', [purgeIds, userId])
-        .catch((err) => console.warn('[element-context] DELETE completed history purge failed:', err.message));
+      // Not caught locally — a failed purge here means deleted_at never gets
+      // set, so these picks would resurrect via GET /recent. Let it bubble to
+      // the outer catch so the client sees a real failure instead of a false
+      // success and silently re-adopting them as "cleared".
+      await pool.query(
+        'UPDATE picks SET deleted_at = now() WHERE id = ANY($1) AND user_id = $2',
+        [purgeIds, userId],
+      );
     } else {
       // No pool (local dev) — fall back to whatever the Redis-only pass found.
       const keys = removed.flatMap((p) => p.attachments ?? []).map((a) => a.r2Key).filter(Boolean);

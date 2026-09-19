@@ -12,6 +12,11 @@ const PRO_TOGGLE_IDS = [
 
 const ALL_TOGGLE_IDS = ["sp-toggle-dom", "sp-toggle-styles", ...PRO_TOGGLE_IDS];
 
+// pickIds cleared via "Clear done" this session. hydrateHistoryFromServer() can
+// have a /recent fetch in flight when the clear happens; that response reflects
+// a pre-clear snapshot and would otherwise re-merge the picks it just removed.
+const recentlyClearedIds = new Set();
+
 // ── App state ────────────────────────────────────────────────────────────────
 
 const app = {
@@ -207,7 +212,7 @@ async function hydrateHistoryFromServer() {
 
     const known = new Set(app.history.map(h => h.pickId).filter(Boolean));
     const fresh = picks
-      .filter(p => !known.has(p.pickId))
+      .filter(p => !known.has(p.pickId) && !recentlyClearedIds.has(p.pickId))
       .map(p => ({
         id:              p.pickId,
         pickId:          p.pickId,
@@ -934,6 +939,10 @@ async function deleteHistoryItem(item) {
  * otherwise old finished picks can crowd out picks still waiting for Claude.
  */
 async function clearCompletedPicks() {
+  app.history
+    .filter(h => h.status === "completed" && h.pickId)
+    .forEach(h => recentlyClearedIds.add(h.pickId));
+
   if (app.apiKey) {
     try {
       await fetch(`${SERVER_URL}/element-context/completed`, {
