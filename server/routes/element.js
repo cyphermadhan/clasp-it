@@ -369,20 +369,42 @@ router.delete('/:id', requireApiKey, apiLimit, async (req, res) => {
   const { userId } = req;
 
   try {
-    const pick = await getPickById(userId, pickId);
-    if (!pick) return res.status(404).json({ error: 'Pick not found' });
+    // getPickById is Redis-backed — 24h TTL and a 10-slot ring buffer per
+    // user, so a pick older than that (or evicted by newer picks) always
+    // misses there even though it's still very much alive in Postgres.
+    // Check Postgres directly when available so those picks can still be
+    // cancelled and purged, not just whatever's left in the Redis window.
+    let status;
+    let r2Keys;
+    if (pool) {
+      const { rows } = await pool.query(
+        'SELECT status FROM picks WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL',
+        [pickId, userId],
+      );
+      if (rows.length === 0) return res.status(404).json({ error: 'Pick not found' });
+      status = rows[0].status;
 
-    if (pick.status && pick.status !== 'not_started') {
+      const { rows: atts } = await pool.query(
+        'SELECT r2_key FROM attachments WHERE pick_id = $1 AND user_id = $2',
+        [pickId, userId],
+      );
+      r2Keys = atts.map((a) => a.r2_key).filter(Boolean);
+    } else {
+      const pick = await getPickById(userId, pickId);
+      if (!pick) return res.status(404).json({ error: 'Pick not found' });
+      status = pick.status;
+      r2Keys = (pick.attachments ?? []).map((a) => a.r2Key).filter(Boolean);
+    }
+
+    if (status && status !== 'not_started') {
       return res.status(409).json({
         error: 'Pick already pulled — cannot delete',
-        status: pick.status,
+        status,
       });
     }
 
-    const attachments = pick.attachments ?? [];
-    if (attachments.length > 0) {
-      const keys = attachments.map((a) => a.r2Key).filter(Boolean);
-      await deleteObjects(keys);
+    if (r2Keys.length > 0) {
+      await deleteObjects(r2Keys);
       if (pool) {
         await pool
           .query('DELETE FROM attachments WHERE pick_id = $1 AND user_id = $2', [pickId, userId])
@@ -396,11 +418,12 @@ router.delete('/:id', requireApiKey, apiLimit, async (req, res) => {
     await removePickFromList(userId, pickId);
 
     // Mark gone in persistent history too, so a cancelled pick doesn't
-    // resurface via GET /recent on a fresh install.
+    // resurface via GET /recent on a fresh install. Must be awaited — a
+    // fire-and-forget query here means the client gets "success" before (or
+    // even if) deleted_at actually commits, and a failure would silently
+    // leave the row purgeable-looking-but-not, resurfacing on next hydrate.
     if (pool) {
-      pool
-        .query('UPDATE picks SET deleted_at = now() WHERE id = $1 AND user_id = $2', [pickId, userId])
-        .catch((err) => console.warn('[element-context] DELETE history purge failed:', err.message));
+      await pool.query('UPDATE picks SET deleted_at = now() WHERE id = $1 AND user_id = $2', [pickId, userId]);
     }
 
     return res.json({ success: true });
