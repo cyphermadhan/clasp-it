@@ -38,7 +38,8 @@
       "mcp__clasp__list_recent_picks",
       "mcp__clasp__update_pick_status",
       "Bash(mkdir -p /Users/atlas/Documents/Github/clasp/server/public/fonts && cp /Users/atlas/Downloads/Anthropic-TypeSystem-FontStack-26.043.1/AnthropicSans-Web/*.woff* /Users/atlas/Documents/Github/clasp/server/public/fonts/ && cp /Users/atlas/Downloads/Anthropic-TypeSystem-FontStack-26.043.1/AnthropicSerif-Web/*.woff* /Users/atlas/Documents/Github/clasp/server/public/fonts/ && cp /Users/atlas/Downloads/Anthropic-TypeSystem-FontStack-26.043.1/AnthropicMono-Web/*.woff* /Users/atlas/Documents/Github/clasp/server/public/fonts/ && ls /Users/atlas/Documents/Github/clasp/server/public/fonts/)",
-      "mcp__clasp__get_element_context"
+      "mcp__clasp__get_element_context",
+      "mcp__plugin_nr_google-search__web_fetch"
     ],
     "additionalDirectories": [
       "/Users/atlas/Documents/Github/clasp"
